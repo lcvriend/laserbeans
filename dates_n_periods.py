@@ -44,6 +44,14 @@ def to_timestamp(arg):
         return pd.Timestamp(*arg)
 
 
+def correct_date(date, threshold):
+    threshold = to_timestamp(threshold)
+    if date < threshold:
+        return threshold
+    else:
+        return date
+
+
 def dayofyear2date(year, dayofyear):
     return pd.Timestamp.strptime(f'{year} {dayofyear:03}', '%Y %j')
 
