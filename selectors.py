@@ -8,19 +8,22 @@ import pandas as pd
 import laserbeans.dates_n_periods as dnp
 
 
-def select_years(df, date_field, admyear_field, years, start, end, unit='D'):
+def select_years(df, date_field, admyear_field, start, end, years='all', unit='D'):
     """
     Select period over multiple administrative years within df.
 
     ---
     :param df: DataFrame.
-    :param years: Years to compare (list).
+    :param years: Years to compare (list) or 'all' to select all years in df [default = 'all'].
     :param date_field: Date field to select on (string).
     :param admyear_field: Field containing the administrative year (string).
     :param start: Start period unit.
     :param end: End period unit.
     :param unit: Unit of time for selecting the period ('D', 'W', 'M', 'Y') [default = 'D'].
     """
+
+    if years == 'all':
+        years = df[admyear_field].unique().tolist()
 
     if start < end:
         span = False
