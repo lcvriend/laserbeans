@@ -19,7 +19,7 @@ def select_years(df, date_field, admyear_field, years, start, end, unit='D'):
     :param admyear_field: Field containing the administrative year (string).
     :param start: Start period unit.
     :param end: End period unit.
-    :param unit: Unit of time to resample the data to ('D', 'W', 'M', 'Y') [default = 'D'].
+    :param unit: Unit of time for selecting the period ('D', 'W', 'M', 'Y') [default = 'D'].
     """
 
     if start < end:
