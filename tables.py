@@ -37,8 +37,10 @@ def crosstab_f(df,
                         index=row_fields,
                         columns=column_fields,
                         aggfunc='sum',
+                        dropna=False,
                         margins=True,
                         margins_name=totals_name)
+    df = df.dropna(how='all')
     if drop_totals_col:
         df = df.drop(totals_name, axis=1, level=1)
     df.columns = df.columns.droplevel(0)
