@@ -125,3 +125,71 @@ def generate_chart(df, y_name, var_name,
         figure = chart | ilegend
 
     return figure
+
+
+def generate_bin_chart(df, y_name, var_name, var_order=None):
+    """
+    Generate interactive altair chart from DataFrame:
+    - Converts df from wide-form to long-form
+    - Transforms index name to lowercase.
+    - Creates interactive legend based on number of categories
+
+    ---
+    :param df: DataFrame.
+    :param y_name: Name for value on the y-axis (string).
+    :param var_name: Name of categorized variable (string).
+    :param var_order: [Optional] Order in which the category names in var_name should be displayed in the legend (list)
+    """
+
+    bin_sort = df.index.tolist()
+    x = df.index.name = df.index.name.lower()
+    df = df.reset_index().melt(x, var_name=var_name, value_name=y_name)
+
+    if not var_order:
+        var_order = df[var_name].unique().tolist()
+
+    height = 30 * len(var_order)
+    source = df
+
+    # selections
+    multi = alt.selection_multi(fields=[var_name], empty='all')
+
+    # interactive legend
+    ilegend = alt.Chart(source, width=30, height=height).mark_square().encode(
+        y=alt.Y(f'{var_name}:N',
+                axis=alt.Axis(title=var_name,
+                              ticks=False,
+                              labelPadding=5,
+                              domain=False
+                              ),
+                sort=alt.Sort(var_order),
+                ),
+        size=alt.condition(multi,
+                           alt.value(200),
+                           alt.value(100),
+                           ),
+        color=alt.condition(multi,
+                            alt.Color(f'{var_name}:N', legend=None),
+                            alt.value('lightgray'),
+                            ),
+    ).properties(selection=multi)
+
+    # chart
+    chart = alt.Chart(source, width=600, mark=alt.MarkDef('bar', clip=True)).encode(
+        x=alt.X(f'{x}:O',
+                sort=bin_sort
+                ),
+        y=alt.Y(f'{y_name}:Q',
+                stack='zero',
+                ),
+        color=alt.Color(f'{var_name}:N',
+                        legend=None),
+        order=alt.Order(f'{var_name}:N', sort='descending'),
+    ).transform_filter(
+        multi
+    )
+
+    # combine
+    figure = chart | ilegend
+
+    return figure
