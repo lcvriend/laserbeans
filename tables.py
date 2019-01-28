@@ -4,6 +4,7 @@ tables
 Wrappers for pandas for transforming DataFrame into aggregated tables.
 """
 
+import numpy as np
 import pandas as pd
 
 
@@ -46,3 +47,20 @@ def crosstab_f(df,
     df.columns = df.columns.droplevel(0)
     df = df.fillna(0)
     return df.astype(int)
+
+
+def build_formatters(df, format):
+    return {column:format
+            for (column, dtype) in df.dtypes.iteritems()
+                if dtype in [np.dtype('int32'),
+                             np.dtype('int64'),
+                             np.dtype('float32'),
+                             np.dtype('float64')]}
+
+
+def table_to_html(df, filename):
+    num_format = lambda x: '{:,}'.format(x)
+    formatters = build_formatters(df, num_format)
+    html_table = df.to_html(formatters=formatters).replace('.0', '').replace(',', '.')
+    with open(filename, 'w') as f:
+        f.write(html_table)
