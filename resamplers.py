@@ -97,3 +97,30 @@ def resample(df, cat_field, date_field, start, end, unit='D', use_dt=True):
         df_output.index = getattr(df_output.index, dnp.DT_TRANSFORM[unit])
 
     return df_output
+
+
+def bin_data(df, target_field, bin_size, cat_field=None):
+    """
+    Count frequency of binned observations.
+
+    ---
+    :param df: DataFrame.
+    :param target_field: Name of field to be binned (string).
+    :param bin_size: Size of the bins (float/integer).
+    :param cat_field: [Optional] name of category field (string).
+    """
+
+    grouper = list(filter(None, [cat_field, 'bin']))
+    start = df[target_field].min()
+    end = df[target_field].max()
+    bin_range = pd.interval_range(start=start, end=end, freq=bin_size)
+
+    df['bin'] = pd.cut(df[target_field], bins=bin_range)
+    df = df.groupby(grouper)['bin'].count().to_frame()
+    df.columns = ['count']
+
+    if df.index.nlevels == 2:
+        df = df.unstack(0)
+        df.columns = df.columns.droplevel(0)
+    df.index = pd.Index([str(bin).replace(', ', '-') for bin in df.index.tolist()], name=target_field)
+    return df
