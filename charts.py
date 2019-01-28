@@ -34,9 +34,7 @@ def generate_chart(df, y_name, var_name,
     """
     def to_altair_datetime(dt):
         dt = pd.to_datetime(dt)
-        return alt.DateTime(year=dt.year, month=dt.month, date=dt.day,
-                            hours=dt.hour, minutes=dt.minute, seconds=dt.second,
-                            milliseconds=0.001 * dt.microsecond)
+        return alt.DateTime(year=dt.year, month=dt.month, date=dt.day)
 
     x = df.index.name = df.index.name.lower()
     if isinstance(df.index, pd.DatetimeIndex):
