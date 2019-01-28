@@ -70,7 +70,7 @@ def generate_chart(df, y_name, var_name,
         domainx = brushx.ref()
 
     # interactive legend
-    ilegend = alt.Chart(source, width=30, height=height).mark_square().encode(
+    ilegend = alt.Chart(source, width=30, height=height).mark_square(cursor='pointer').encode(
         y=alt.Y(f'{var_name}:N',
                 axis=alt.Axis(title=var_name,
                               ticks=False,
@@ -155,7 +155,7 @@ def generate_bin_chart(df, y_name, var_name, var_order=None):
     multi = alt.selection_multi(fields=[var_name], empty='all')
 
     # interactive legend
-    ilegend = alt.Chart(source, width=30, height=height).mark_square().encode(
+    ilegend = alt.Chart(source, width=30, height=height).mark_square(cursor='pointer').encode(
         y=alt.Y(f'{var_name}:N',
                 axis=alt.Axis(title=var_name,
                               ticks=False,
