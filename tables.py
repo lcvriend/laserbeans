@@ -16,6 +16,7 @@ def crosstab_f(df,
                totals_col=True,
                totals_row=True,
                perc_cols=False,
+               perc_axis=0,
                name_abs='abs',
                name_rel='%'):
     """
@@ -81,18 +82,20 @@ def crosstab_f(df,
     # remove row/columns where all values are 0
     df = df.loc[(df != 0).any(axis=1)]
     df = df.loc[:, (df != 0).any(axis=0)]
-    df = df.astype(int)
+    df = df.astype('int64')
 
     if perc_cols:
         df = add_perc_cols(df,
-                           totals_row='auto',
+                           axis=perc_axis,
+                           totals='auto',
                            name_abs=name_abs,
                            name_rel=name_rel)
     return df
 
 
 def add_perc_cols(df,
-                  totals_row='auto',
+                  axis=0,
+                  totals='auto',
                   name_abs='abs',
                   name_rel='%'):
     """
@@ -102,6 +105,7 @@ def add_perc_cols(df,
     :param df: DataFrame.
 
     Optional keyword arguments:
+    :param axis: Calculate percentage within column (axis=0) or within row (axis=1) [default=0]
     :param totals_row:
         'auto' - Check automatically (may backfire). [default]
         True - Use the last row as a totals row.
@@ -110,19 +114,33 @@ def add_perc_cols(df,
     :param name_rel: Name of relative column [default='%']
     """
 
-    def check_for_totals_row(df, col):
-        total = df.iloc[-1][col]
-        if not total == df.iloc[:len(df) - 1][col].sum():
-            total = df[col].sum()
+    def check_for_totals(df, col, axis):
+        if axis == 0:
+            total = df.iloc[-1][col]
+            if not total == df.iloc[:len(df) - 1][col].sum():
+                total = df[col].sum()
+        else:
+            total = df.iloc[:, -1]
+            if not total.equals(df.iloc[:, :len(df.columns)-1].sum(axis=1)):
+                total = df.sum(axis=1)
         return total
 
-    def set_total(df, col, totals_row):
-        if totals_row == 'auto':
-            return check_for_totals_row(df, col)
-        elif totals_row:
-            return df.iloc[-1][col]
+    def set_total(df, col, totals):
+        if totals == 'auto':
+            total = check_for_totals(df, col, axis)
+            return total
+        elif totals:
+            if axis == 0:
+                total = df.iloc[-1][col]
+            else:
+                total = df.iloc[:, -1]
+            return total
         else:
-            return df[col].sum()
+            if axis == 0:
+                total = df[col].sum()
+            else:
+                total = df.sum(axis=1)
+            return total
 
     df_output = df.copy()
     nlevels = df_output.columns.nlevels + 1
@@ -137,7 +155,7 @@ def add_perc_cols(df,
             new_col = *col, name_rel
             abs_col = *col, name_abs
 
-        total = set_total(df, col, totals_row)
+        total = set_total(df, col, totals)
         df_output[new_col] = (df_output[abs_col] / total * 100).round(1)
 
     levels = list(range(nlevels))
