@@ -11,23 +11,29 @@ import pandas as pd
 def crosstab_f(df,
                row_fields,
                column_fields,
-               totals_name='Total',
-               drop_totals_col=False):
+               totals_name='Totals',
+               totals_col=True,
+               totals_row=True):
     """
-    Create frequency crosstab for given row and column fields.
+    Create frequency crosstab for selected categories mapped to specified row and column fields. Group by and count selected categories in df. Then set to rows and columns in crosstab output.
 
     ---
     :param df: DataFrame.
     :param row_fields: Fields to add into the rows (list).
     :param column_fields: Fields to add into the columns (list).
-    :param totals_name: Name for total rows/columns (string) [default='Total'].
-    :param drop_totals_col: Drop totals column if True (boolean) [default='False']
+
+    Optional keyword arguments:    
+    :param totals_name: Name for total rows/columns (string) [default='Totals'].
+    :param totals_col: Add totals column if True (boolean) [default=True]
+    :param totals_row: Add totals row if True (boolean) [default=True]
     """
 
     if isinstance(row_fields, str):
         row_fields = [row_fields]
     if isinstance(column_fields, str):
         column_fields = [column_fields]
+
+    margins = totals_col or totals_row
 
     col = df.columns[0]
     group_cols = column_fields.copy()
@@ -39,11 +45,17 @@ def crosstab_f(df,
                         columns=column_fields,
                         aggfunc='sum',
                         dropna=False,
-                        margins=True,
+                        margins=margins,
                         margins_name=totals_name)
     df = df.dropna(how='all')
-    if drop_totals_col:
-        df = df.drop(totals_name, axis=1, level=1)
+    if margins:
+        if not totals_col:
+            df = df.drop(totals_name, axis=1, level=1)
+        if not totals_row:
+            try:
+                df = df.drop(totals_name, axis=0, level=0)
+            except:
+                df = df.drop(totals_name, axis=0)
     df.columns = df.columns.droplevel(0)
     df = df.fillna(0)
     return df.astype(int)
