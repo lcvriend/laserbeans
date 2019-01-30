@@ -74,6 +74,7 @@ def add_perc_cols(df, totals_row='auto'):
         True - Use the last row as a totals row.
         False - Calculate the total.
     """
+
     def check_for_totals_row(df, col):
         total = df.iloc[-1][col]
         if not total == df.iloc[:len(df) - 1][col].sum():
@@ -82,21 +83,32 @@ def add_perc_cols(df, totals_row='auto'):
 
     def set_total(df, col, totals_row):
         if totals_row == 'auto':
-            total = check_for_totals_row(df, col)
+            return check_for_totals_row(df, col)
         elif totals_row:
-            total = df.iloc[-1][col]
+            return df.iloc[-1][col]
         else:
-            total = total = df[col].sum()
+            return df[col].sum()
 
     df_output = df.copy()
-    df_output.columns = pd.MultiIndex.from_product([df.columns, ['abs']])
+    levels = list(range(df_output.columns.nlevels + 1))
+    levels.append(levels.pop(0))
+    df_output = pd.concat([df_output], axis=1, keys=['abs']).reorder_levels(levels, axis=1).sort_index(level=[0, 1], ascending=True, axis=1)
 
     for col in df.columns:
+        new_col = col, '%'
+        abs_col = col, 'abs'
+        if isinstance(col, tuple):
+            new_col = *col, '%'
+            abs_col = *col, 'abs'
+
         total = set_total(df, col, totals_row)
+        df_output[new_col] = (df_output[abs_col] / total * 100).round(1)
 
-        df_output[col, '%'] = (df_output.loc[:, [col, 'abs']] / total * 100).round(1)
+    levels = list(range(df_output.columns.nlevels))
+    sort = [bool(level) for level in levels]
+    sort.append(sort.pop(0))
 
-    return df_output.sort_index(level=[0, 1], ascending=[True, False], axis=1)
+    return df_output.sort_index(level=levels, ascending=sort, axis=1)
 
 
 def build_formatters(df, format):
