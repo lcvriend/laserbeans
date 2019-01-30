@@ -11,6 +11,7 @@ import pandas as pd
 def crosstab_f(df,
                row_fields,
                column_fields,
+               ignore_nan=False,
                totals_name='Totals',
                totals_col=True,
                totals_row=True):
@@ -22,22 +23,33 @@ def crosstab_f(df,
     :param row_fields: Fields to add into the rows (list).
     :param column_fields: Fields to add into the columns (list).
 
-    Optional keyword arguments:    
+    Optional keyword arguments:
+    :param ignore_nan: Ignores category combinations if they have nans [default=False].
     :param totals_name: Name for total rows/columns (string) [default='Totals'].
     :param totals_col: Add totals column if True (boolean) [default=True]
     :param totals_row: Add totals row if True (boolean) [default=True]
     """
 
-    if isinstance(row_fields, str):
+    # assure row and column fields are lists
+    if not isinstance(row_fields, list):
         row_fields = [row_fields]
-    if isinstance(column_fields, str):
+    if not isinstance(column_fields, list):
         column_fields = [column_fields]
 
     margins = totals_col or totals_row
 
-    col = df.columns[0]
+    # set columns to use/select from df
     group_cols = column_fields.copy()
     group_cols.extend(row_fields)
+
+    if not ignore_nan:
+        for col in group_cols:
+            if df[col].isnull().values.any():
+                if df[col].dtype.name == 'category':
+                    df[col] = df[col].cat.add_categories([''])
+                df[col] = df[col].fillna('')
+
+    col = df.columns[0]
     df = df.groupby(group_cols)[[col]].count()
     df = df.dropna()
     df = pd.pivot_table(df.reset_index(),
@@ -48,6 +60,7 @@ def crosstab_f(df,
                         margins=margins,
                         margins_name=totals_name)
     df = df.dropna(how='all')
+
     if margins:
         if not totals_col:
             df = df.drop(totals_name, axis=1, level=1)
@@ -58,6 +71,10 @@ def crosstab_f(df,
                 df = df.drop(totals_name, axis=0)
     df.columns = df.columns.droplevel(0)
     df = df.fillna(0)
+
+    # remove row/columns where all values are 0
+    df = df.loc[(df != 0).any(axis=1)]
+    df = df.loc[:, (df != 0).any(axis=0)]
     return df.astype(int)
 
 
