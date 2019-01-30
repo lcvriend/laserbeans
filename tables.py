@@ -61,6 +61,44 @@ def crosstab_f(df,
     return df.astype(int)
 
 
+def add_perc_cols(df, totals_row='auto'):
+    """
+    Add percentage columns for all columns in the DataFrame.
+
+    ---
+    :param df: DataFrame.
+
+    Optional keyword arguments:
+    :param totals_row:
+        'auto' - Check automatically (may backfire). [default]
+        True - Use the last row as a totals row.
+        False - Calculate the total.
+    """
+    def check_for_totals_row(df, col):
+        total = df.iloc[-1][col]
+        if not total == df.iloc[:len(df) - 1][col].sum():
+            total = df[col].sum()
+        return total
+
+    def set_total(df, col, totals_row):
+        if totals_row == 'auto':
+            total = check_for_totals_row(df, col)
+        elif totals_row:
+            total = df.iloc[-1][col]
+        else:
+            total = total = df[col].sum()
+
+    df_output = df.copy()
+    df_output.columns = pd.MultiIndex.from_product([df.columns, ['abs']])
+
+    for col in df.columns:
+        total = set_total(df, col, totals_row)
+
+        df_output[col, '%'] = (df_output.loc[:, [col, 'abs']] / total * 100).round(1)
+
+    return df_output.sort_index(level=[0, 1], ascending=[True, False], axis=1)
+
+
 def build_formatters(df, format):
     return {column: format
             for (column, dtype) in df.dtypes.iteritems()
