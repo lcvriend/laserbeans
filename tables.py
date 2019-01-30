@@ -14,7 +14,10 @@ def crosstab_f(df,
                ignore_nan=False,
                totals_name='Totals',
                totals_col=True,
-               totals_row=True):
+               totals_row=True,
+               perc_cols=False,
+               name_abs='abs',
+               name_rel='%'):
     """
     Create frequency crosstab for selected categories mapped to specified row and column fields. Group by and count selected categories in df. Then set to rows and columns in crosstab output.
 
@@ -28,6 +31,9 @@ def crosstab_f(df,
     :param totals_name: Name for total rows/columns (string) [default='Totals'].
     :param totals_col: Add totals column if True (boolean) [default=True]
     :param totals_row: Add totals row if True (boolean) [default=True]
+    :param perc_cols: Add relative frequency per column [default=False]
+    :param name_abs: Name of absolute column [default='abs']
+    :param name_rel: Name of relative column [default='%']
     """
 
     # assure row and column fields are lists
@@ -75,8 +81,14 @@ def crosstab_f(df,
     # remove row/columns where all values are 0
     df = df.loc[(df != 0).any(axis=1)]
     df = df.loc[:, (df != 0).any(axis=0)]
-    return df.astype(int)
+    df = df.astype(int)
 
+    if perc_cols:
+        df = add_perc_cols(df,
+                           totals_row='auto',
+                           name_abs=name_abs,
+                           name_rel=name_rel)
+    return df
 
 def add_perc_cols(df, totals_row='auto'):
     """
