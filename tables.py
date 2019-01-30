@@ -62,16 +62,16 @@ def crosstab_f(df,
 
 
 def build_formatters(df, format):
-    return {column:format
+    return {column: format
             for (column, dtype) in df.dtypes.iteritems()
-                if dtype in [np.dtype('int32'),
-                             np.dtype('int64'),
-                             np.dtype('float32'),
-                             np.dtype('float64')]}
+            if dtype in [np.dtype('int32'),
+                         np.dtype('int64'),
+                         np.dtype('float32'),
+                         np.dtype('float64')]}
 
 
 def table_to_html(df, filename):
-    num_format = lambda x: '{:,}'.format(x)
+    def num_format(x): return '{:,}'.format(x)
     formatters = build_formatters(df, num_format)
     html_table = df.to_html(formatters=formatters).replace('.0', '').replace(',', '.')
     with open(filename, 'w') as f:
