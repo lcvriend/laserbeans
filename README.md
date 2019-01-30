@@ -8,10 +8,11 @@ The repo consists of tools for:
 - Dealing with dates and times
 - Resampling time series data
 - Creating frequency tables
+- Adding percentage columns to tables
 - Creating interactive charts
 
 ## Abstractions
-Data exploration should be quick and easy. I find that some useful and reusable table and chart types, require a significant amount of data manipulation and configuration to set up. This process, then, often entails a lot of repetitive code. The purpose of this toolbox is to abstract away most of that boilerplate code. This is done by creating convenience wrappers for:
+Data exploration preferably should be quick and easy. I find that some useful and reusable table and chart types, require a significant amount of data manipulation and configuration to set up. This process, then, often entails a lot of repetitive code. The purpose of this toolbox is to abstract away most of that boilerplate code. This is done by creating convenience wrappers for:
 - [Pandas](https://pandas.pydata.org/)
 - [Altair](https://altair-viz.github.io)
 
