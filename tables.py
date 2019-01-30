@@ -90,7 +90,11 @@ def crosstab_f(df,
                            name_rel=name_rel)
     return df
 
-def add_perc_cols(df, totals_row='auto'):
+
+def add_perc_cols(df,
+                  totals_row='auto',
+                  name_abs='abs',
+                  name_rel='%'):
     """
     Add percentage columns for all columns in the DataFrame.
 
@@ -102,6 +106,8 @@ def add_perc_cols(df, totals_row='auto'):
         'auto' - Check automatically (may backfire). [default]
         True - Use the last row as a totals row.
         False - Calculate the total.
+    :param name_abs: Name of absolute column [default='abs']
+    :param name_rel: Name of relative column [default='%']
     """
 
     def check_for_totals_row(df, col):
@@ -119,25 +125,26 @@ def add_perc_cols(df, totals_row='auto'):
             return df[col].sum()
 
     df_output = df.copy()
-    levels = list(range(df_output.columns.nlevels + 1))
+    nlevels = df_output.columns.nlevels + 1
+    levels = list(range(nlevels))
     levels.append(levels.pop(0))
-    df_output = pd.concat([df_output], axis=1, keys=['abs']).reorder_levels(levels, axis=1).sort_index(level=[0, 1], ascending=True, axis=1)
+    df_output = pd.concat([df_output], axis=1, keys=[name_abs]).reorder_levels(levels, axis=1).sort_index(level=[0, 1], ascending=True, axis=1)
 
     for col in df.columns:
-        new_col = col, '%'
-        abs_col = col, 'abs'
+        new_col = col, name_rel
+        abs_col = col, name_abs
         if isinstance(col, tuple):
-            new_col = *col, '%'
-            abs_col = *col, 'abs'
+            new_col = *col, name_rel
+            abs_col = *col, name_abs
 
         total = set_total(df, col, totals_row)
         df_output[new_col] = (df_output[abs_col] / total * 100).round(1)
 
-    levels = list(range(df_output.columns.nlevels))
-    sort = [bool(level) for level in levels]
-    sort.append(sort.pop(0))
+    levels = list(range(nlevels))
+    df_output = df_output.sort_index(level=levels, ascending=True, axis=1)
+    df_output = df_output.reindex([name_abs, name_rel], level=nlevels-1, axis=1)
 
-    return df_output.sort_index(level=levels, ascending=sort, axis=1)
+    return df_output
 
 
 def build_formatters(df, format):
