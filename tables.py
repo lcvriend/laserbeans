@@ -119,6 +119,7 @@ def add_perc_cols(df,
     :param df: DataFrame
 
     Optional keyword arguments:
+    ===========================
     :param axis: {‘grand’, ‘index’, ‘columns’}, or {0,1}, default 0
         'grand' - Calculate percentages from grand total.
         'index', 0 - Calculate percentages from row totals.
