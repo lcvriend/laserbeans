@@ -23,18 +23,32 @@ def crosstab_f(df,
     Create frequency crosstab for selected categories mapped to specified row and column fields. Group by and count selected categories in df. Then set to rows and columns in crosstab output.
 
     ---
-    :param df: DataFrame.
-    :param row_fields: Fields to add into the rows (list).
-    :param column_fields: Fields to add into the columns (list).
+    :param df: DataFrame
+    :param row_fields: str, list (of strings)
+        Name(s) of DataFrame field(s) to add into the rows.
+    :param column_fields: str, list (of strings)
+        Name(s) of DataFrame field(s) to add into the columns.
 
     Optional keyword arguments:
-    :param ignore_nan: Ignores category combinations if they have nans [default=False].
-    :param totals_name: Name for total rows/columns (string) [default='Totals'].
-    :param totals_col: Add totals column if True (boolean) [default=True]
-    :param totals_row: Add totals row if True (boolean) [default=True]
-    :param perc_cols: Add relative frequency per column [default=False]
-    :param name_abs: Name of absolute column [default='abs']
-    :param name_rel: Name of relative column [default='%']
+    ===========================
+    :param ignore_nan: boolean, default False
+        Ignore category combinations if they have nans.
+    :param totals_name: str, default 'Totals'
+        Name for total rows/columns (string).
+    :param totals_col: boolean, default True
+        Add totals column.
+    :param totals_row: boolean, default True
+        Add totals row.
+    :param perc_cols: boolean, default False
+        Add relative frequency per column
+    :param perc_axis: {‘grand’, ‘index’, ‘columns’}, or {0,1}, default 0
+        'grand' - Calculate percentages from grand total.
+        'index', 0 - Calculate percentages from row totals.
+        'columns', 1 - Calculate percentages from column totals.
+    :param name_abs: str, default 'abs'
+        Name for absolute column.
+    :param name_rel: str, default '%'
+        Name for relative column.
     """
 
     # assure row and column fields are lists
@@ -109,7 +123,7 @@ def add_perc_cols(df,
         'grand' - Calculate percentages from grand total.
         'index', 0 - Calculate percentages from row totals.
         'columns', 1 - Calculate percentages from column totals.
-    :param totals_row: boolean, {'atuo'}, default 'auto'
+    :param totals_row: boolean, {'auto'}, default 'auto'
         'auto' - Check automatically (may backfire).
         True - Take the totals from the DataFrame (last row/column/value).
         False - Calculate the totals.
