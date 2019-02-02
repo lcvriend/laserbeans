@@ -174,7 +174,7 @@ def add_perc_cols(df,
                   'index': check_for_totals_row,
                   1: check_for_totals_col,
                   'columns': check_for_totals_col,
-                  'grande': check_for_grand_total,
+                  'grand': check_for_grand_total,
                   }
         if not axis in [1, 'columns']:
             total = maparg[axis](df, totals)
