@@ -102,51 +102,77 @@ def add_perc_cols(df,
     Add percentage columns for all columns in the DataFrame.
 
     ---
-    :param df: DataFrame.
+    :param df: DataFrame
 
     Optional keyword arguments:
-    :param axis: Calculate percentage within column (axis=0) or within row (axis=1) [default=0]
-    :param totals_row:
-        'auto' - Check automatically (may backfire). [default]
-        True - Use the last row as a totals row.
-        False - Calculate the total.
-    :param name_abs: Name of absolute column [default='abs']
-    :param name_rel: Name of relative column [default='%']
+    :param axis: {‘grand’, ‘index’, ‘columns’}, or {0,1}, default 0
+        'grand' - Calculate percentages from grand total.
+        'index', 0 - Calculate percentages from row totals.
+        'columns', 1 - Calculate percentages from column totals.
+    :param totals_row: boolean, {'atuo'}, default 'auto'
+        'auto' - Check automatically (may backfire).
+        True - Take the totals from the DataFrame (last row/column/value).
+        False - Calculate the totals.
+    :param name_abs: string, default 'abs'
+        Name of absolute column.
+    :param name_rel: string, default '%'
+        Name of relative column.
     """
 
-    def check_for_totals(df, col, axis):
-        if axis == 0:
-            total = df.iloc[-1][col]
-            if not total == df.iloc[:len(df) - 1][col].sum():
-                total = df[col].sum()
-        else:
-            total = df.iloc[:, -1]
-            if not total.equals(df.iloc[:, :len(df.columns)-1].sum(axis=1)):
-                total = df.sum(axis=1)
-        return total
+    nrows, ncols = df.shape
 
-    def set_total(df, col, totals):
-        if totals == 'auto':
-            total = check_for_totals(df, col, axis)
+    def check_for_totals_col(df, col, totals_mode):
+        total = df.iloc[-1][col]
+        if totals_mode == 'auto':
+            if not total == df.iloc[:nrows - 1][col].sum():
+                total = df[col].sum()
             return total
-        elif totals:
-            if axis == 0:
-                total = df.iloc[-1][col]
-            else:
-                total = df.iloc[:, -1]
+        if totals_mode:
             return total
         else:
-            if axis == 0:
-                total = df[col].sum()
-            else:
+            return df[col].sum()
+
+    def check_for_totals_row(df, totals_mode):
+        total = df.iloc[:, -1]
+        if totals_mode == 'auto':
+            if not total.equals(df.iloc[:, :ncols - 1].sum(axis=1)):
                 total = df.sum(axis=1)
             return total
+        if totals_mode:
+            return total
+        else:
+            return df.sum(axis=1)
+
+    def check_for_grand_total(df, totals_mode):
+        total = df.iloc[-1, -1]
+        if totals_mode == 'auto':
+            if not total == df.iloc[:nrows - 1, :ncols - 1].values.sum():
+                total = check_for_totals_row(df, 'auto').values.sum()
+            return total
+        elif totals_mode:
+            return total
+        else:
+            return check_for_totals_row(df).values.sum()
+
+    def set_total(df, col, axis, totals):
+        maparg = {0: check_for_totals_row,
+                  'index': check_for_totals_row,
+                  1: check_for_totals_col,
+                  'columns': check_for_totals_col,
+                  'grande': check_for_grand_total,
+                  }
+        if not axis in [1, 'columns']:
+            total = maparg[axis](df, totals)
+        else:
+            total = maparg[axis](df, col, totals)
+        return total
 
     df_output = df.copy()
     nlevels = df_output.columns.nlevels + 1
     levels = list(range(nlevels))
     levels.append(levels.pop(0))
-    df_output = pd.concat([df_output], axis=1, keys=[name_abs]).reorder_levels(levels, axis=1).sort_index(level=[0, 1], ascending=True, axis=1)
+    df_output = pd.concat([df_output], axis=1, keys=[name_abs]).reorder_levels(
+        levels, axis=1).sort_index(level=[0, 1], ascending=True, axis=1)
 
     for col in df.columns:
         new_col = col, name_rel
@@ -155,7 +181,7 @@ def add_perc_cols(df,
             new_col = *col, name_rel
             abs_col = *col, name_abs
 
-        total = set_total(df, col, totals)
+        total = set_total(df, col, axis, totals)
         df_output[new_col] = (df_output[abs_col] / total * 100).round(1)
 
     levels = list(range(nlevels))
