@@ -4,8 +4,12 @@ tables
 Wrappers for pandas for transforming DataFrame into aggregated tables.
 """
 
+import itertools
+import pkgutil
+from pathlib import Path
 import numpy as np
 import pandas as pd
+from IPython.core.display import HTML
 
 
 def crosstab_f(df,
@@ -223,117 +227,175 @@ def table_to_html(df, filename):
         f.write(html_table)
 
 
-def thead(df, tab=4):
+class FancyTable:
+    css = Path(Path(__file__).resolve().parent / 'table.css').read_text()
+    tab = 4
 
-    def set_col_names(spans, tab):
-        col_names = list()
-        for span in spans:
-            if span[1] > 1:
-                col_names.append(f'{tab * 3}<th class="col_name" colspan="{span[1]}">{span[0]}</th>\n')
-            else:
-                col_names.append(f'{tab * 3}<th class="col_name">{span[0]}</th>\n')
-        return col_names
+    def __init__(self, df):
+        self.df = df
 
-    tab = ' ' * tab
-    html_repr = ''
-    all_levels = list()
-    nlevels_col = df.columns.nlevels
-    nlevels_row = df.index.nlevels
-    _, ncols = df.shape
+    def set_values(self):
+        self.nlevels_col = self.df.columns.nlevels
+        self.nlevels_row = self.df.index.nlevels
+        self.nrows, self.ncols = self.df.shape
+        self.col_edges = self.find_edges()
 
-    # column names
-    i = 0
-    while i < nlevels_col:
-        if nlevels_row > 1:
-            level = [f'{tab * 3}<th class="col_idx_pre"></th>\n'] * (nlevels_row - 1)
-        else:
-            level = list()
-        col_idx_name = df.columns.get_level_values(i).name
-        html_repr = f'{tab * 3}<th class="col_idx_name">{col_idx_name}</th>\n'
-        level.append(html_repr)
-
-        col_names = df.columns.get_level_values(i).tolist()
-        spans = find_spans(col_names)
-        html_repr = set_col_names(spans, tab)
-        level.extend(html_repr)
-
-        all_levels.append(level)
-        i += 1
-
-    # index names
-    idx_names = list(dfx.index.names)
-    level = [f'{tab * 3}<td class="row_idx_name">{idx_name}</td>\n' for idx_name in idx_names]
-    level.extend([f'{tab * 3}<td class="row_idx_post"></td>\n'] * ncols)
-    all_levels.append(level)
-
-    # convert to html
-    html = ''
-    for level in all_levels:
-        html += f'{tab * 2}<tr class="tbl_row">\n'
-        html += ''.join(level)
-        html += f'{tab * 2}</tr>\n'
-    thead = f'{tab}<thead>\n{html}{tab}</thead>\n'
-    return thead
-
-
-def tbody(df, tid=1, tab=4):
-
-    def set_row_names(spans):
-        row_names = list()
-        for span in spans:
-            if span[1] > 1:
-                row_names.append(f'<th class="row_name" rowspan="{span[1]}">{span[0]}</th>\n')
-            else:
-                row_names.append(f'<th class="row_name">{span[0]}</th>\n')
-            nones = [None] * (span[1] - 1)
-            row_names.extend(nones)
-        return row_names
-
-    tab = ' ' * tab
-    row_elements = list()
-
-    # indices
-    nlevels_row = df.index.nlevels
-    i = 0
-    while i < nlevels_row:
-        idx_names = df.index.get_level_values(i)
-        spans = find_spans(idx_names)
-        level = set_row_names(spans)
-        row_elements.append(level)
-        i += 1
-
-    # values
-    row_vals = list()
-    for row_idx, row in enumerate(df.values):
-        val_line = (tab * 3).join([f'<td class="tbl_cell" id="{tid}-{row_idx + 1}|{col_idx + 1}">{item}</td>\n' for col_idx, item in enumerate(row)])
-        row_vals.append(val_line)
-    row_elements.append(row_vals)
-
-    # zip indices and values
-    rows = list(zip(*row_elements))
-
-    # write tbody
-    html = ''
-    for row in rows:
-        row_str = ''
-        row_str = (tab * 2) + '<tr class="tbl_row">\n'
-        row_str += ''.join([(tab * 3) + item for item in row if item is not None])
-        row_str += (tab * 2) + '</tr>\n'
-        html += row_str
-    tbody = f'{tab}<tbody>\n{html}{tab}</tbody>\n'
-    return tbody
-
-
-def find_spans(idx_vals):
-    spans = list()
-    for val in idx_vals:
-        try:
-            if not val == spans[-1][0]:
+    @staticmethod
+    def find_spans(idx_vals):
+        spans = list()
+        for val in idx_vals:
+            try:
+                if not val == spans[-1][0]:
+                    spans.append((val, 1))
+                else:
+                    val_tup = spans.pop(-1)
+                    new_val_tup = val, val_tup[1] + 1
+                    spans.append(new_val_tup)
+            except:
                 spans.append((val, 1))
+        return spans
+
+    def find_edges(self):
+        col_edges = list()
+        if self.nlevels_col > 1:
+            col_names = self.df.columns.get_level_values(-2).tolist()
+            spans = self.find_spans(col_names)
+            spans = [span[1] for span in spans]
+            col_edges = list(itertools.accumulate(spans))
+            col_edges = [col_edge - 1 for col_edge in col_edges]
+        return col_edges
+
+    def html(self):
+        self.set_values()
+        html_tbl = f'{self.css}<table class="laserbeans">\n{self.thead()}{self.tbody()}</table>\n'
+        return html_tbl
+
+    def display(self):
+        display(HTML(self.html()))
+
+    def thead(self):
+        tab = ' ' * self.tab
+        html_repr = ''
+        all_levels = list()
+
+        # column index names
+        def set_col_names(spans, tab, level):
+            col_names = list()
+            if i == (self.nlevels_col - 1):
+                for spn_idx, span in enumerate(spans):
+                    html_repr = f'{tab * 3}<th class="col_name" colspan="{span[1]}">{span[0]}</th>\n'
+                    if spn_idx in self.col_edges:
+                        html_repr = f'{tab * 3}<th class="col_name col_edge" colspan="{span[1]}">{span[0]}</th>\n'
+                    col_names.append(html_repr)
             else:
-                val_tup = spans.pop(-1)
-                new_val_tup = val, val_tup[1] + 1
-                spans.append(new_val_tup)
-        except:
-            spans.append((val, 1))
-    return spans
+                for span in spans:
+                    if span[1] > 1:
+                        html_repr = f'{tab * 3}<th class="col_name col_edge" colspan="{span[1]}">{span[0]}</th>\n'
+                        col_names.append(html_repr)
+                    else:
+                        html_repr = f'{tab * 3}<th class="col_name col_edge">{span[0]}</th>\n'
+                        col_names.append(html_repr)
+            return col_names
+
+        i = 0
+        while i < self.nlevels_col:
+            level = list()
+
+            # column index
+            col_idx_name = self.df.columns.get_level_values(i).name
+            if col_idx_name == None:
+                col_idx_name = ''
+
+            if self.nlevels_row > 1:
+                html_repr = f'{tab * 3}<th class="col_idx_name" colspan="{self.nlevels_row}">{col_idx_name}</th>\n'
+            else:
+                html_repr = f'{tab * 3}<th class="col_idx_name">{col_idx_name}</th>\n'
+            level.append(html_repr)
+
+            # column names
+            col_names = self.df.columns.get_level_values(i).tolist()
+            spans = self.find_spans(col_names)
+            html_repr = set_col_names(spans, tab, i)
+            level.extend(html_repr)
+
+            all_levels.append(level)
+            i += 1
+
+        # row index names
+        def html_repr_idx_names(idx_name):
+            html_repr = f'{tab * 3}<td class="row_idx_name">{idx_name}</td>\n'
+            return html_repr
+
+        idx_names = list(self.df.index.names)
+        level = [html_repr_idx_names(idx_name) for idx_name in idx_names]
+
+        def html_repr_idx_post(col_idx, item):
+            html_repr = f'{tab * 3}<td class="row_idx_post"></td>\n'
+            if col_idx in self.col_edges:
+                html_repr = f'{tab * 3}<td class="row_idx_post col_edge"></td>\n'
+            return html_repr
+
+        level.extend([html_repr_idx_post(col_idx, item) for col_idx, item in enumerate([''] * self.ncols)])
+        all_levels.append(level)
+
+        # convert to html
+        html = ''
+        for level in all_levels:
+            html += f'{tab * 2}<tr class="tbl_row">\n'
+            html += ''.join(level)
+            html += f'{tab * 2}</tr>\n'
+        thead = f'{tab}<thead>\n{html}{tab}</thead>\n'
+        return thead
+
+    def tbody(self, tid='cell'):
+
+        tab = ' ' * self.tab
+        row_elements = list()
+
+        # indices
+        def set_row_names(spans):
+            row_names = list()
+            for span in spans:
+                if span[1] > 1:
+                    row_names.append(f'<th class="row_name" rowspan="{span[1]}">{span[0]}</th>\n')
+                else:
+                    row_names.append(f'<th class="row_name">{span[0]}</th>\n')
+                nones = [None] * (span[1] - 1)
+                row_names.extend(nones)
+            return row_names
+
+        i = 0
+        while i < self.nlevels_row:
+            idx_names = self.df.index.get_level_values(i)
+            spans = self.find_spans(idx_names)
+            level = set_row_names(spans)
+            row_elements.append(level)
+            i += 1
+
+        # values
+        def html_repr(col_idx, item):
+            html_repr = f'<td id="{tid}-{row_idx + 1}-{col_idx + 1}" class="tbl_cell">{item}</td>\n'
+            if col_idx in self.col_edges:
+                html_repr = f'<td id="{tid}-{row_idx + 1}-{col_idx + 1}" class="tbl_cell col_edge">{item}</td>\n'
+            return html_repr
+
+        row_vals = list()
+        for row_idx, row in enumerate(self.df.values):
+            val_line = [html_repr(col_idx, item) for col_idx, item in enumerate(row)]
+            val_line = (tab * 3).join(val_line)
+            row_vals.append(val_line)
+        row_elements.append(row_vals)
+
+        # zip indices and values
+        rows = list(zip(*row_elements))
+
+        # write tbody
+        html = ''
+        for row in rows:
+            row_str = ''
+            row_str = (tab * 2) + '<tr class="tbl_row">\n'
+            row_str += ''.join([(tab * 3) + item for item in row if item is not None])
+            row_str += (tab * 2) + '</tr>\n'
+            html += row_str
+        tbody = f'{tab}<tbody>\n{html}{tab}</tbody>\n'
+        return tbody

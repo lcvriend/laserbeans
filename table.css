@@ -1,0 +1,68 @@
+<style>
+    @import url('https://fonts.googleapis.com/css?family=Roboto+Mono:400,500');
+    table.laserbeans {
+        display: table;
+        border-left: 1px solid rgb(171, 178, 185);
+        border-right: 1px solid rgb(171, 178, 185);
+        border-bottom: 2px solid rgb(23, 32, 42);
+    }
+    .laserbeans thead,
+    .laserbeans tbody {
+        display: table-header-group;
+    }
+    .laserbeans tr {
+        display: table-row;
+    }
+    .laserbeans th.col_idx_name,
+    .laserbeans th.col_name,
+    .laserbeans td.row_idx_name,
+    .laserbeans td.row_idx_post,
+    .laserbeans th.row_name,
+    .laserbeans td.tbl_cell {
+        display: table-cell;
+        padding: 0.75em;
+        font-family: 'Roboto Mono', monospace;
+        font-weight: 500;
+        font-size: 1.0em;
+    }
+    .laserbeans th.col_idx_pre,
+    .laserbeans th.col_idx_name,
+    .laserbeans tr th.col_name {
+        background: rgb(23, 32, 42);
+        color: white;
+    }
+    .laserbeans td.row_idx_name,
+    .laserbeans td.row_idx_post {
+        background: rgb(39, 55, 70);
+        color: white;
+    }
+    .laserbeans th.col_idx_name,
+    .laserbeans td.row_idx_name,
+    .laserbeans th.row_name {
+        text-align: left;
+    }
+    .laserbeans th.col_name {
+        text-align: center;
+    }
+    .laserbeans th.col_idx_name,
+    .laserbeans td.row_idx_name,
+    .laserbeans th.row_name,
+    .laserbeans th.col_edge,
+    .laserbeans td.col_edge {
+        border-right: 1px solid rgb(171, 178, 185);
+    }
+    .laserbeans td.tbl_cell {
+        text-align: right;
+        font-weight: 400;
+    }
+    .laserbeans tr.tbl_row:nth-child(even),
+    .laserbeans tr.tbl_row:nth-child(odd) {
+        background: unset;
+    }
+    .laserbeans tr.tbl_row {
+        border-bottom: 1px solid rgb(171, 178, 185);
+    }
+    .laserbeans tr.tbl_row:hover {
+        background: rgb(242, 244, 244);
+    }
+</style>
