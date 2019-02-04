@@ -16,7 +16,7 @@ def crosstab_f(df,
                totals_col=True,
                totals_row=True,
                perc_cols=False,
-               perc_axis=0,
+               perc_axis='grand',
                name_abs='abs',
                name_rel='%'):
     """
@@ -41,7 +41,7 @@ def crosstab_f(df,
         Add totals row.
     :param perc_cols: boolean, default False
         Add relative frequency per column
-    :param perc_axis: {‘grand’, ‘index’, ‘columns’}, or {0,1}, default 0
+    :param perc_axis: {'grand', 'index', 'columns'}, or {0,1}, default 'grand'
         'grand' - Calculate percentages from grand total.
         'index', 0 - Calculate percentages from row totals.
         'columns', 1 - Calculate percentages from column totals.
@@ -108,7 +108,7 @@ def crosstab_f(df,
 
 
 def add_perc_cols(df,
-                  axis=0,
+                  axis='grand',
                   totals='auto',
                   name_abs='abs',
                   name_rel='%'):
@@ -120,7 +120,7 @@ def add_perc_cols(df,
 
     Optional keyword arguments:
     ===========================
-    :param axis: {‘grand’, ‘index’, ‘columns’}, or {0,1}, default 0
+    :param axis: {'grand', 'index', 'columns'}, or {0,1}, default 'grand'
         'grand' - Calculate percentages from grand total.
         'index', 0 - Calculate percentages from row totals.
         'columns', 1 - Calculate percentages from column totals.
