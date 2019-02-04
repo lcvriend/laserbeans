@@ -221,3 +221,105 @@ def table_to_html(df, filename):
     html_table = df.to_html(formatters=formatters).replace('.0', '').replace(',', '.')
     with open(filename, 'w') as f:
         f.write(html_table)
+
+
+def thead(df, tab=4):
+    tab = ' ' * tab
+
+    all_levels = list()
+    nlevels_col = df.columns.nlevels
+    nlevels_row = df.index.nlevels
+    _, ncols = df.shape
+
+    # column names
+    i = 0
+    while i < nlevels_col:
+        if nlevels_row > 1:
+            level = [''] * (nlevels_row - 1)
+        else:
+            level = list()
+        level.append(df.columns.get_level_values(i).name)
+        level.extend(df.columns.get_level_values(i).tolist())
+
+        spans = find_spans(level)
+        all_levels.append(set_idx_cols(spans))
+        i += 1
+
+    # index names
+    level = list(dfx.index.names)
+    level.extend([''] * ncols)
+    all_levels.append([f'{tab * 3}<td>{item}</td>\n' for item in level])
+
+    # convert to html
+    html = ''
+    for level in all_levels:
+        html += f'{tab * 2}<tr>\n'
+        html += ''.join(level)
+        html += f'{tab * 2}</tr>\n'
+    thead = f'{tab}<thead>\n{html}{tab}</thead>\n'
+    return thead
+
+def tbody(df, tid=1, tab=4):
+    tab = ' ' * tab
+    row_elements = list()
+
+    # indices
+    nlevels_row = df.index.nlevels
+    i = 0
+    while i < nlevels_row:
+        level = set_idx_rows(find_spans(df.index.get_level_values(i)))
+        row_elements.append(level)
+        i += 1
+
+    # values
+    row_vals = list()
+    for row_idx, row in enumerate(df.values):
+        val_line = (tab * 3).join([f'<td id="{tid}-{row_idx + 1}|{col_idx + 1}">{item}</td>\n' for col_idx, item in enumerate(row)])
+        row_vals.append(val_line)
+    row_elements.append(row_vals)
+
+    # zip indices and values
+    rows = list(zip(*row_elements))
+
+    # write tbody
+    html = ''
+    for row in rows:
+        row_str = ''
+        row_str = (tab * 2) + '<tr>\n'
+        row_str += ''.join([(tab * 3) + item for item in row if item is not None])
+        row_str += (tab * 2) + '</tr>\n'
+        html += row_str
+    tbody = f'{tab}<tbody>\n{html}{tab}</tbody>\n'
+    return tbody
+
+def set_idx_cols(spans, tab=4):
+    tab = ' ' * tab
+    col_idx = list()
+    for span in spans:
+        if span[1] > 1:
+            col_idx.append(f'{tab * 3}<th colspan="{span[1]}" class="col_name">{span[0]}</th>\n')
+        else:
+            col_idx.append(f'{tab * 3}<th class="col_name">{span[0]}</th>\n')
+    return col_idx
+
+def set_idx_rows(spans):
+    row_idx = list()
+    for span in spans:
+        row_idx.append(f'<th rowspan="{span[1]}">{span[0]}</th>\n')
+        nones = [None] * (span[1] - 1)
+        row_idx.extend(nones)
+    return row_idx
+
+def find_spans(idx_vals):
+    spans = list()
+    for val in idx_vals:
+        try:
+            if not val == spans[-1][0]:
+                spans.append((val, 1))
+            else:
+                val_tup = spans.pop(-1)
+                new_val_tup = val, val_tup[1] + 1
+                spans.append(new_val_tup)
+        except:
+            spans.append((val, 1))
+    return spans
