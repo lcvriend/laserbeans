@@ -228,7 +228,8 @@ def table_to_html(df, filename):
 
 
 class FancyTable:
-    css = Path(Path(__file__).resolve().parent / 'table.css').read_text()
+    path_to_css = Path(__file__).resolve().parent / 'table.css'
+    css = path_to_css.read_text()
     tab = 4
 
     def __init__(self, df):
