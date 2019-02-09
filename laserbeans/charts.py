@@ -52,7 +52,7 @@ def generate_chart(df, y_name, var_name,
         ticks = list(range(xmin, xmax))
     domainx = (xmin, xmax)
 
-    df = df.reset_index().melt(x, var_name=var_name, value_name=y_name)
+    df = df.rename(columns=str).reset_index().melt(x, var_name=var_name, value_name=y_name)
 
     if not var_order:
         var_order = df[var_name].unique().tolist()
