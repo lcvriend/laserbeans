@@ -211,8 +211,13 @@ def add_perc_cols(df,
         total = set_total(df, col, axis, totals)
         df_output[new_col] = (df_output[abs_col] / total * 100).round(1)
 
+    # reorder columns
     levels = list(range(nlevels))
     df_output = df_output.sort_index(level=levels, ascending=True, axis=1)
+
+    col_order = [item[0] for item in itertools.groupby(df.columns.get_level_values(0))]
+    df_output = df_output.reindex(col_order, level=0, axis=1)
+
     df_output = df_output.reindex([name_abs, name_rel], level=nlevels-1, axis=1)
 
     return df_output
