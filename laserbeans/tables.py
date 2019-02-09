@@ -31,7 +31,7 @@ def crosstab_f(df,
     :param df: DataFrame
     :param row_fields: str, list (of strings)
         Name(s) of DataFrame field(s) to add into the rows.
-    :param column_fields: str, list (of strings)
+    :param column_fields: str, list (of strings), None
         Name(s) of DataFrame field(s) to add into the columns.
 
     Optional keyword arguments
@@ -56,6 +56,10 @@ def crosstab_f(df,
         Name for relative column.
     """
 
+    if not column_fields:
+        column_fields = '_tmp'
+        df[column_fields] = '_tmp'
+
     # assure row and column fields are lists
     if not isinstance(row_fields, list):
         row_fields = [row_fields]
@@ -68,6 +72,7 @@ def crosstab_f(df,
     group_cols = column_fields.copy()
     group_cols.extend(row_fields)
 
+    # fill nan if ignore_nan is False
     if not ignore_nan:
         for col in group_cols:
             if df[col].isnull().values.any():
@@ -79,10 +84,15 @@ def crosstab_f(df,
     check = False
     i = 0
     while not check:
-        col = df.columns[i]
-        if not col in group_cols:
+        try:
+            col = df.columns[i]
+            if not col in group_cols:
+                check = True
+            i += 1
+        except:
+            df['_tmp'] = '_tmp'
+            col = '_tmp'
             check = True
-        i += 1
 
     df = df.groupby(group_cols)[[col]].count()
     df = df.dropna()
@@ -110,6 +120,13 @@ def crosstab_f(df,
     df = df.loc[(df != 0).any(axis=1)]
     df = df.loc[:, (df != 0).any(axis=0)]
     df = df.astype('int64')
+
+    # try to remove temp column
+    try:
+        df = df.drop('_tmp', axis=1)
+        df.columns.name = ''
+    except:
+        pass
 
     if perc_cols:
         df = add_perc_cols(df,
