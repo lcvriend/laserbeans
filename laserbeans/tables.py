@@ -6,9 +6,9 @@ Wrappers for pandas for transforming DataFrame into aggregated tables.
 
 import itertools
 import pkgutil
-from pathlib import Path
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from IPython.core.display import HTML
 
 
@@ -26,15 +26,16 @@ def crosstab_f(df,
     """
     Create frequency crosstab for selected categories mapped to specified row and column fields. Group by and count selected categories in df. Then set to rows and columns in crosstab output.
 
-    ---
+    Parameters
+    ==========
     :param df: DataFrame
     :param row_fields: str, list (of strings)
         Name(s) of DataFrame field(s) to add into the rows.
     :param column_fields: str, list (of strings)
         Name(s) of DataFrame field(s) to add into the columns.
 
-    Optional keyword arguments:
-    ===========================
+    Optional keyword arguments
+    ==========================
     :param ignore_nan: boolean, default False
         Ignore category combinations if they have nans.
     :param totals_name: str, default 'Totals'
@@ -127,11 +128,12 @@ def add_perc_cols(df,
     """
     Add percentage columns for all columns in the DataFrame.
 
-    ---
+    Parameters
+    ==========
     :param df: DataFrame
 
-    Optional keyword arguments:
-    ===========================
+    Optional keyword arguments
+    ==========================
     :param axis: {'grand', 'index', 'columns'}, or {0,1}, default 'grand'
         'grand' - Calculate percentages from grand total.
         'index', 0 - Calculate percentages from row totals.
@@ -221,6 +223,74 @@ def add_perc_cols(df,
     df_output = df_output.reindex([name_abs, name_rel], level=nlevels-1, axis=1)
 
     return df_output
+
+
+def crosstab_bin(df, target_field, bin_size, cat_field=None):
+    """
+    Create crosstab from frequency count of binned observations and (optional) category variable.
+
+    Parameters
+    ==========
+    :param df: DataFrame
+    :param target_field: string
+        Name of field to be binned.
+    :param bin_size: {float, integer}
+        Size of the bins.
+
+    Optional keyword arguments
+    ==========================
+    :param cat_field: string, default None
+        Name of category field.
+    """
+
+    grouper = list(filter(None, [cat_field, 'bin']))
+    start = df[target_field].min()
+    end = df[target_field].max()
+    bin_range = pd.interval_range(start=start, end=end, freq=bin_size)
+
+    df['bin'] = pd.cut(df[target_field], bins=bin_range)
+    df = df.groupby(grouper)['bin'].count().to_frame()
+    df.columns = ['count']
+
+    if df.index.nlevels == 2:
+        df = df.unstack(0)
+        df.columns = df.columns.droplevel(0)
+    df.index = pd.Index([str(bin_).replace(', ', '-') for bin_ in df.index.tolist()], name=target_field)
+    return df
+
+
+def quick_bin(df, target_field, bin_size, bin_col='bin', bin_str=False):
+    """
+    Add column to DataFrame where values from target field are categorized into bins of bin_size.
+
+    Parameters
+    ==========
+    :param df: DataFrame
+    :param target_field: string
+        Name of field to be binned.
+    :param bin_size: {float, integer}
+        Size of the bins.
+
+    Optional keyword arguments
+    ==========================
+    :param bin_col: string, default 'bin'
+        Name of bin field.
+    """
+
+    start = df[target_field].min()
+    max_ = df[target_field].max()
+    end = np.ceil((max_ - start) / bin_size) * bin_size + start
+    bin_range = pd.interval_range(start=start,
+                                  end=end,
+                                  freq=bin_size,
+                                  closed='left')
+
+    df[bin_col] = pd.cut(df[target_field], bins=bin_range)
+
+    if bin_str:
+        df[bin_col] = df[bin_col].astype(str).str.replace(', ', '-')
+
+    return df
 
 
 def build_formatters(df, format):
