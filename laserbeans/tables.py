@@ -393,8 +393,9 @@ class FancyTable:
                 html_repr = f'<td id="{tid}-{row_idx + 1}-{col_idx + 1}" class="tbl_cell col_edge">{item}</td>\n'
             return html_repr
 
+        values = self.df.astype(str).values # cast all values as strings
         row_vals = list()
-        for row_idx, row in enumerate(self.df.values):
+        for row_idx, row in enumerate(values):
             val_line = [html_repr(col_idx, item) for col_idx, item in enumerate(row)]
             val_line = (tab * 3).join(val_line)
             row_vals.append(val_line)
