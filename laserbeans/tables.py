@@ -74,7 +74,15 @@ def crosstab_f(df,
                     df[col] = df[col].cat.add_categories([''])
                 df[col] = df[col].fillna('')
 
-    col = df.columns[0]
+    # find column for counting that is not in group_cols
+    check = False
+    i = 0
+    while not check:
+        col = df.columns[i]
+        if not col in group_cols:
+            check = True
+        i += 1
+
     df = df.groupby(group_cols)[[col]].count()
     df = df.dropna()
     df = pd.pivot_table(df.reset_index(),
