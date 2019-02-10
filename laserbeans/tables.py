@@ -219,7 +219,7 @@ def add_perc_cols(df,
     levels = list(range(nlevels))
     levels.append(levels.pop(0))
     df_output = pd.concat([df_output], axis=1, keys=[name_abs]).reorder_levels(
-        levels, axis=1).sort_index(level=[0, 1], ascending=True, axis=1)
+        levels, axis=1)
 
     for col in df.columns:
         new_col = col, name_rel
@@ -229,16 +229,10 @@ def add_perc_cols(df,
             abs_col = *col, name_abs
 
         total = set_total(df, col, axis, totals)
+        col_idx = df_output.columns.get_loc(abs_col)
+        new_cols = df_output.columns.insert(col_idx + 1, new_col)
+        df_output = pd.DataFrame(df_output, columns=new_cols)
         df_output[new_col] = (df_output[abs_col] / total * 100).round(1)
-
-    # reorder columns
-    levels = list(range(nlevels))
-    df_output = df_output.sort_index(level=levels, ascending=True, axis=1)
-
-    col_order = [item[0] for item in itertools.groupby(df.columns.get_level_values(0))]
-    df_output = df_output.reindex(col_order, level=0, axis=1)
-
-    df_output = df_output.reindex([name_abs, name_rel], level=nlevels-1, axis=1)
 
     return df_output
 
