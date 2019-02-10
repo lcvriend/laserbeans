@@ -8,6 +8,7 @@ import itertools
 import pkgutil
 import numpy as np
 import pandas as pd
+from pandas.api.types import CategoricalDtype
 from pathlib import Path
 from IPython.core.display import HTML
 
@@ -294,18 +295,27 @@ def quick_bin(df, target_field, bin_size, bin_col='bin', bin_str=False):
         Name of bin field.
     """
 
+    df = df.copy()
+
+    # define bins according to bin size
     start = df[target_field].min()
     max_ = df[target_field].max()
-    end = np.ceil((max_ - start) / bin_size) * bin_size + start
+    nbins = np.ceil((max_ - start) / bin_size)
+    end = nbins * bin_size + start
     bin_range = pd.interval_range(start=start,
                                   end=end,
-                                  freq=bin_size,
+                                  periods=nbins,
                                   closed='left')
 
     df[bin_col] = pd.cut(df[target_field], bins=bin_range)
 
     if bin_str:
-        df[bin_col] = df[bin_col].astype(str).str.replace(', ', '-')
+        # df[bin_col] = df[bin_col].astype(str).str.replace(', ', '-')
+        cat_names = [f'[{x.left}-{x.right})'
+                     for x in df[bin_col].cat.categories.values]
+        cat = CategoricalDtype(categories=cat_names, ordered=True)
+        df[bin_col] = df[bin_col].cat.rename_categories(cat_names)
+        df[bin_col] = df[bin_col].astype(cat)
 
     return df
 
