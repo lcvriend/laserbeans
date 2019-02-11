@@ -11,6 +11,7 @@ import pandas as pd
 from pandas.api.types import CategoricalDtype
 from pathlib import Path
 from IPython.core.display import HTML
+import laserbeans.dates_n_periods as dnp
 
 
 def crosstab_f(df,
@@ -310,6 +311,40 @@ def quick_bin(df, target_field, bin_size, bin_col='bin', bin_str=False):
         cat = CategoricalDtype(categories=cat_names, ordered=True)
         df[bin_col] = df[bin_col].cat.rename_categories(cat_names)
         df[bin_col] = df[bin_col].astype(cat)
+
+    return df
+
+
+def aggregate_time(df, date_field, grouper_cols=None, unit='D'):
+    """
+    tbd
+    """
+    df = df.copy()
+
+    if not grouper_cols:
+        grouper_cols = '_tmp'
+        df[grouper_cols] = '_tmp'
+
+    if not isinstance(grouper_cols, list):
+        grouper_cols = [grouper_cols]
+    grouper_cols.insert(0, unit)
+
+    # find column for counting that is not in group_cols
+    check = False
+    i = 0
+    while not check:
+        try:
+            col = df.columns[i]
+            if not col in group_cols:
+                check = True
+            i += 1
+        except:
+            df['_tmp'] = '_tmp'
+            col = '_tmp'
+            check = True
+
+    df[unit] = getattr(df[date_field].dt, dnp.DT_TRANSFORM[unit])
+    df = df.groupby(by=grouper_cols)[col].count().unstack()
 
     return df
 
