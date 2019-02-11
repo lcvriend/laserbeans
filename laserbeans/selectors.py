@@ -10,7 +10,7 @@ import laserbeans.dates_n_periods as dnp
 
 def select_years(df, date_field, admyear_field, start, end, years='all', unit='D'):
     """
-    Select period over multiple administrative years within df.
+    Select records within period over multiple administrative years.
 
     ---
     :param df: DataFrame.
@@ -53,7 +53,7 @@ def select_years(df, date_field, admyear_field, start, end, years='all', unit='D
 
 def selector(df, date_field, start, end):
     """
-    Select period within df.
+    Select records within a period.
 
     ---
     :param df: DataFrame.
