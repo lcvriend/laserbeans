@@ -321,12 +321,18 @@ def aggregate_time(df, date_field, grouper_cols=None, unit='D'):
     """
     df = df.copy()
 
+    if start == 'min':
+        start = df[date_field].min()
+    if end == 'max':
+        end = df[date_field].max()
+    df = sel.selector(df, date_field, start=start, end=end)
+
     if not grouper_cols:
         grouper_cols = '_tmp'
         df[grouper_cols] = '_tmp'
-
     if not isinstance(grouper_cols, list):
         grouper_cols = [grouper_cols]
+
     grouper_cols.insert(0, unit)
 
     # find column for counting that is not in group_cols
@@ -344,9 +350,23 @@ def aggregate_time(df, date_field, grouper_cols=None, unit='D'):
             check = True
 
     df[unit] = getattr(df[date_field].dt, dnp.DT_TRANSFORM[unit])
-    df = df.groupby(by=grouper_cols)[col].count().unstack()
 
-    return df
+    if use_dt:
+        grouper_cols.insert(1, '_year')
+        df['_year'] = getattr(df[date_field].dt, dnp.DT_TRANSFORM['Y'])
+    df_output = df.groupby(by=grouper_cols)[col].count().unstack()
+
+    if use_dt:
+        if df_output.columns.dtype.name == 'category':
+            df_output.columns = df_output.columns.add_categories(['_year', unit])
+        df_output = df_output.reset_index()
+
+        df_output.index = df_output.apply(lambda row: dnp.dt_conversion[unit](row['_year'].astype(int), row[unit].astype(int)), axis=1)
+
+        df_output = df_output.drop(['_year', unit], axis=1)
+        df_output.columns = df_output.columns.remove_unused_categories()
+
+    return df_output
 
 
 def build_formatters(df, format):
