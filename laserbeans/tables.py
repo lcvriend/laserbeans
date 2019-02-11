@@ -12,6 +12,7 @@ from pandas.api.types import CategoricalDtype
 from pathlib import Path
 from IPython.core.display import HTML
 import laserbeans.dates_n_periods as dnp
+import laserbeans.selectors as sel
 
 
 def crosstab_f(df,
@@ -315,9 +316,34 @@ def quick_bin(df, target_field, bin_size, bin_col='bin', bin_str=False):
     return df
 
 
-def aggregate_time(df, date_field, grouper_cols=None, unit='D'):
+def aggregate_time(df, date_field, start='min', end='max', grouper_cols=None, unit='D', use_dt=False):
     """
-    tbd
+    Aggregate records per time unit of date_field and count them.
+
+    Parameters
+    ==========
+    :param df: DataFrame
+    :param date_field: string
+        Name of field containing date to be aggregated.
+
+    Optional keyword arguments
+    ==========================
+    :param start: {'min'}, or {Timestamp, Datetime, date string, tuple (year, month, day)}, default 'min'
+        'min' - Use earliest date in date field
+        Start date for aggregation period.
+    :param end: {'max'}, or {Timestamp, Datetime, date string, tuple (year, month, day)}, default 'max'
+        'max' - Use latest date in date field
+        End date for aggregation period.
+    :param grouper_cols: str, list (of strings), None, default None
+        Name(s) of DataFrame field(s) to group by.
+    :param unit: {'D', 'W', 'M', 'Y'}, default 'D'
+        Unit of time to resample the data to.
+        'D' - day of year
+        'W' - week of year
+        'M' - month of year
+        'Y' - year
+    :param use_dt: boolean, default False
+        Return date instead of a number.
     """
     df = df.copy()
 
