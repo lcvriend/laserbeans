@@ -1,7 +1,7 @@
 # laserbeans
 *Toolbox for data exploration*
 
-This repo aims to facilitate the data exploration process. It was developed for the Central Student Administration of [Utrecht University](www.uu.nl).
+This repo aims to facilitate the data exploration process. It was developed for the Central Student Administration of [Utrecht University](www.uu.nl). Check out [this notebook](https://nbviewer.jupyter.org/github/lcvriend/laserbeans/blob/master/example.ipynb) for some examples.
 
 The repo consists of tools for:
 - Selecting data
