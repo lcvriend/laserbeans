@@ -23,15 +23,26 @@ def generate_chart(df, y_name, var_name,
     - Formats x based on type (datetime or int)
     - Creates interactive legend based on number of categories
 
-    ---
+    Parameters
+    ==========
     :param df: DataFrame.
-    :param y_name: Name for value on the y-axis (string).
-    :param var_name: Name of categorized variable (string).
-    :param var_order: [Optional] Order in which the category names in var_name should be displayed in the legend (list)
-    :param mark: Mark type. One of 'bar', 'circle', 'square', 'tick', 'line', 'area', 'point', 'rule', and 'text' (string) [default = 'area'].
-    :param stack: Option to stack chart. One of 'zero', 'normalize', 'center' or None [default = None].
-    :param zoom: Option to add vertical zoom to chart. One of True or False [default = False].
+    :param y_name: string
+        Name for value on the y-axis.
+    :param var_name: string
+        Name of the category variable.
+
+    Optional keyword arguments
+    ==========================
+    :param var_order: list, default None
+        Order in which the category names in var_name should be displayed in the legend.
+    :param mark: {'bar', 'circle', 'square', 'tick', 'line', 'area', 'point', 'rule', and 'text'}, default 'area'
+        Mark type.
+    :param stack: {'zero', 'normalize', 'center'} or None, default None
+        Option to stack chart.
+    :param zoom: boolean, default False
+        Option to add vertical zoom to chart.
     """
+
     def to_altair_datetime(dt):
         dt = pd.to_datetime(dt)
         return alt.DateTime(year=dt.year, month=dt.month, date=dt.day)
@@ -132,11 +143,18 @@ def generate_bin_chart(df, y_name, var_name, var_order=None):
     - Transforms index name to lowercase.
     - Creates interactive legend based on number of categories
 
-    ---
+    Parameters
+    ==========
     :param df: DataFrame.
-    :param y_name: Name for value on the y-axis (string).
-    :param var_name: Name of categorized variable (string).
-    :param var_order: [Optional] Order in which the category names in var_name should be displayed in the legend (list)
+    :param y_name: string
+        Name for value on the y-axis.
+    :param var_name: string
+        Name of categorized variable.
+
+    Optional keyword arguments
+    ==========================
+    :param var_order: list or None, default None
+        Order in which the category names in var_name should be displayed in the legend.
     """
 
     bin_sort = df.index.tolist()
