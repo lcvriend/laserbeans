@@ -201,7 +201,7 @@ def add_perc_cols(df,
         elif totals_mode:
             return total
         else:
-            return check_for_totals_row(df).values.sum()
+            return check_for_totals_row(df, False).values.sum()
 
     def set_total(df, col, axis, totals):
         maparg = {0: check_for_totals_row,
