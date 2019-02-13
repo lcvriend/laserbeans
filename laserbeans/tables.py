@@ -367,7 +367,7 @@ def aggregate_time(df, date_field, start='min', end='max', grouper_cols=None, un
     while not check:
         try:
             col = df.columns[i]
-            if not col in group_cols:
+            if not col in grouper_cols:
                 check = True
             i += 1
         except:
