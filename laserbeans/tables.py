@@ -616,7 +616,7 @@ class FancyTable:
         thead = f'{tab}<thead>\n{html}{tab}</thead>\n'
         return thead
 
-    def tbody(self, tid='cell'):
+    def _tbody(self, tid='cell'):
 
         tab = ' ' * self.tab
         row_elements = list()
@@ -669,3 +669,28 @@ class FancyTable:
             html += row_str
         tbody = f'{tab}<tbody>\n{html}{tab}</tbody>\n'
         return tbody
+
+    def find_edges(self):
+        col_edges = list()
+        if self.nlevels_col > 1:
+            col_names = [col[: -1] for col in df_.columns]
+            spans = self.find_spans(col_names)
+            spans = [span[1] for span in spans]
+            col_edges = list(itertools.accumulate(spans))
+            col_edges = [col_edge - 1 for col_edge in col_edges]
+        return col_edges
+
+    @staticmethod
+    def find_spans(idx_vals):
+        spans = list()
+        for val in idx_vals:
+            try:
+                if not val == spans[-1][0]:
+                    spans.append((val, 1))
+                else:
+                    val_tup = spans.pop(-1)
+                    new_val_tup = val, val_tup[1] + 1
+                    spans.append(new_val_tup)
+            except:
+                spans.append((val, 1))
+        return spans
