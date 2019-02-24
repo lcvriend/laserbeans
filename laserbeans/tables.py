@@ -550,20 +550,21 @@ class FancyTable:
         # column index names
         def set_col_names(spans, tab, level):
             col_names = list()
-            if i == (self.nlevels_col - 1):
-                for spn_idx, span in enumerate(spans):
-                    html_repr = f'{tab * 3}<th class="col_name" colspan="{span[1]}">{span[0]}</th>\n'
-                    if spn_idx in self.col_edges:
-                        html_repr = f'{tab * 3}<th class="col_name col_edge" colspan="{span[1]}">{span[0]}</th>\n'
-                    col_names.append(html_repr)
-            else:
-                for span in spans:
-                    if span[1] > 1:
-                        html_repr = f'{tab * 3}<th class="col_name col_edge" colspan="{span[1]}">{span[0]}</th>\n'
-                        col_names.append(html_repr)
-                    else:
-                        html_repr = f'{tab * 3}<th class="col_name col_edge">{span[0]}</th>\n'
-                        col_names.append(html_repr)
+
+            for spn_idx, span in enumerate(spans):
+                colspan = ''
+                col_name = span[0]
+                col_edge = ' col_edge'
+
+                if span[1] > 1:
+                    colspan = f' colspan="{span[1]}"'
+                if isinstance(span[0], tuple):
+                    col_name = span[0][i]
+                if i == (self.nlevels_col - 1) and not spn_idx in self.col_edges:
+                    col_edge = ''
+
+                html_repr = f'{tab * 3}<th class="col_name{col_edge}" {colspan}>{col_name}</th>\n'
+                col_names.append(html_repr)
             return col_names
 
         i = 0
@@ -574,15 +575,15 @@ class FancyTable:
             col_idx_name = self.df.columns.get_level_values(i).name
             if col_idx_name == None:
                 col_idx_name = ''
-
+            colspan = ''
             if self.nlevels_row > 1:
-                html_repr = f'{tab * 3}<th class="col_idx_name" colspan="{self.nlevels_row}">{col_idx_name}</th>\n'
-            else:
-                html_repr = f'{tab * 3}<th class="col_idx_name">{col_idx_name}</th>\n'
+                colspan = f' colspan="{self.nlevels_row}"'
+
+            html_repr = f'{tab * 3}<th class="col_idx_name"{colspan}>{col_idx_name}</th>\n'
             level.append(html_repr)
 
             # column names
-            col_names = self.df.columns.get_level_values(i).tolist()
+            col_names = [col[:i + 1] for col in self.df.columns]
             spans = self.find_spans(col_names)
             html_repr = set_col_names(spans, tab, i)
             level.extend(html_repr)
@@ -599,9 +600,10 @@ class FancyTable:
         level = [html_repr_idx_names(idx_name) for idx_name in idx_names]
 
         def html_repr_idx_post(col_idx, item):
-            html_repr = f'{tab * 3}<td class="row_idx_post"></td>\n'
+            col_edge = ''
             if col_idx in self.col_edges:
-                html_repr = f'{tab * 3}<td class="row_idx_post col_edge"></td>\n'
+                col_edge = ' col_edge'
+            html_repr = f'{tab * 3}<td class="row_idx_post{col_edge}"></td>\n'
             return html_repr
 
         level.extend([html_repr_idx_post(col_idx, item) for col_idx, item in enumerate([''] * self.ncols)])
@@ -625,17 +627,24 @@ class FancyTable:
         def set_row_names(spans):
             row_names = list()
             for span in spans:
+                rowspan = ''
+                idx_name = span[0]
+
                 if span[1] > 1:
-                    row_names.append(f'<th class="row_name" rowspan="{span[1]}">{span[0]}</th>\n')
-                else:
-                    row_names.append(f'<th class="row_name">{span[0]}</th>\n')
+                    rowspan = f' rowspan="{span[1]}"'
+                if isinstance(span[0], tuple):
+                    idx_name = span[0][i]
+
+                html_repr = f'<th class="row_name"{rowspan}>{idx_name}</th>\n'
+                row_names.append(html_repr)
+
                 nones = [None] * (span[1] - 1)
                 row_names.extend(nones)
             return row_names
 
         i = 0
         while i < self.nlevels_row:
-            idx_names = self.df.index.get_level_values(i)
+            idx_names = [idx[:i + 1] for idx in self.df.index]
             spans = self.find_spans(idx_names)
             level = set_row_names(spans)
             row_elements.append(level)
@@ -643,9 +652,10 @@ class FancyTable:
 
         # values
         def html_repr(col_idx, item):
-            html_repr = f'<td id="{tid}-{row_idx + 1}-{col_idx + 1}" class="tbl_cell">{item}</td>\n'
+            col_edge = ''
             if col_idx in self.col_edges:
-                html_repr = f'<td id="{tid}-{row_idx + 1}-{col_idx + 1}" class="tbl_cell col_edge">{item}</td>\n'
+                col_edge = ' col_edge'
+            html_repr = f'<td id="{tid}-{row_idx + 1}-{col_idx + 1}" class="tbl_cell{col_edge}">{item}</td>\n'
             return html_repr
 
         values = self.df.astype(str).values # cast all values as strings
