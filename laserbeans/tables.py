@@ -241,6 +241,110 @@ def add_perc_cols(df,
     return df_output
 
 
+def sub_agg(df, level, axis=0, agg='sum', label=None):
+    """
+    Aggregate within the specified level of a multiindex.
+    (sum, count, mean, std, var, min, max)
+
+    Parameters
+    ==========
+    :param df: DataFrame
+    :param level: int
+        Level of the multiindex to be used for selecting the columns that will be subtotalled.
+
+    Optional keyword arguments
+    ==========================
+    :param axis: {0, 'index' or 'rows', 1 or 'columns'}, default 0
+        If 0, 'index' or 'rows': apply function to row index. If 1 or 'columns': apply function to column index.
+    :param agg: {'sum', 'count', 'median', 'mean', 'std', 'var', 'min', 'max'} or func, default 'sum'
+        - 'sum': sum of values
+        - 'count': number of values
+        - 'median': median
+        - 'mean': mean
+        - 'std': standard deviation
+        - 'var': variance
+        - 'min': minimum value
+        - 'max': maximum value
+        - func: function that aggregates a series and returns a scalar.
+    :param label: {str or None}, default None
+        Label for the aggregation row/column. If None will use the string that is passed to `agg`.
+    """
+
+    if not label:
+        label = agg
+
+    # set axis
+    axis_names = {
+        0: 0,
+        1: 1,
+        'index': 0,
+        'rows': 0,
+        'columns': 1,
+    }
+    axis = axis_names[axis]
+    if axis:
+        df = df.copy()
+    else:
+        df = df.T.copy()
+
+    # set levels
+    nlevels = df.columns.nlevels
+    if nlevels < 2:
+        raise Exception(f'The index is not a multiindex. No subaggregation can occur.')
+    if level >= nlevels - 1:
+        raise Exception(f'The index has {nlevels - 1} useable levels: {list(range(nlevels - 1))}. Level {level} is out of bounds.')
+    nlevels += 1
+    level += 1
+
+    # deal with categorical indexes
+    if df.columns.levels[level].dtype.name == 'category':
+        new_level = df.columns.levels[level].add_categories(label)
+        df.columns.set_levels(new_level, level=level, inplace=True)
+
+    i = level + 1
+    while i < (nlevels - 1):
+        try:
+            new_level = df.columns.levels[i].add_categories('')
+            df.columns.set_levels(new_level, level=i, inplace=True)
+        except:
+            pass
+        i += 1
+
+    # collect column keys for specified level
+    col_keys = list()
+    for col in df.columns:
+        fnd_col = col[: level]
+        col_keys.append(fnd_col)
+    col_keys = list(dict.fromkeys(col_keys))
+
+    # select groups from table, sum them and add to df
+    for key in col_keys:
+        level_list = list(range(level))
+        tbl_grp = df.xs([*key], axis=1, level=level_list, drop_level=False)
+
+        key_last_col = tbl_grp.iloc[:, -1].name
+        lst_last_col = list(key_last_col)
+        lst_last_col[level] = label
+
+        i = level + 1
+        while i < (nlevels - 1):
+            lst_last_col[i] = ''
+            i += 1
+        key_new_col = tuple(lst_last_col)
+
+        idx_col = df.columns.get_loc(key_last_col)
+        extended_cols = df.insert(idx_col + 1, key_new_col, 0)
+        df = pd.DataFrame(df, columns=extended_cols)
+
+        sum_values = tbl_grp.agg(agg, axis=1).values
+        df_col = pd.DataFrame(data=sum_values, columns=pd.MultiIndex.from_tuples([key_new_col]), index=df.index)
+        df.update(df_col)
+
+    if not axis:
+        df = df.T
+    return df
+
+
 def crosstab_bin(df, target_field, bin_size, cat_field=None):
     """
     Create crosstab from frequency count of binned observations and (optional) category variable.
