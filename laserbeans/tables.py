@@ -525,47 +525,24 @@ class FancyTable:
 
     def __init__(self, df):
         self.df = df
-
-    def set_values(self):
-        self.nlevels_col = self.df.columns.nlevels
-        self.nlevels_row = self.df.index.nlevels
-        self.nrows, self.ncols = self.df.shape
+        self.nlevels_col = df.columns.nlevels
+        self.nlevels_row = df.index.nlevels
+        self.nrows, self.ncols = df.shape
         self.col_edges = self.find_edges()
 
-    @staticmethod
-    def find_spans(idx_vals):
-        spans = list()
-        for val in idx_vals:
-            try:
-                if not val == spans[-1][0]:
-                    spans.append((val, 1))
-                else:
-                    val_tup = spans.pop(-1)
-                    new_val_tup = val, val_tup[1] + 1
-                    spans.append(new_val_tup)
-            except:
-                spans.append((val, 1))
-        return spans
+    @property
+    def display(self):
+        display(HTML(self._html()))
 
-    def find_edges(self):
-        col_edges = list()
-        if self.nlevels_col > 1:
-            col_names = self.df.columns.get_level_values(-2).tolist()
-            spans = self.find_spans(col_names)
-            spans = [span[1] for span in spans]
-            col_edges = list(itertools.accumulate(spans))
-            col_edges = [col_edge - 1 for col_edge in col_edges]
-        return col_edges
-
+    @property
     def html(self):
-        self.set_values()
-        html_tbl = f'{self.css}<table class="laserbeans">\n{self.thead()}{self.tbody()}</table>\n'
+        return self._html()
+
+    def _html(self):
+        html_tbl = f'{self.css}<table class="laserbeans">\n{self._thead()}{self._tbody()}</table>\n'
         return html_tbl
 
-    def display(self):
-        display(HTML(self.html()))
-
-    def thead(self):
+    def _thead(self):
         tab = ' ' * self.tab
         html_repr = ''
         all_levels = list()
