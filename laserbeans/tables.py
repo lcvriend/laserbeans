@@ -59,6 +59,8 @@ def crosstab_f(df,
         Name for relative column.
     """
 
+    df = df.copy()
+
     if not column_fields:
         column_fields = '_tmp'
         df[column_fields] = '_tmp'
