@@ -673,7 +673,7 @@ class FancyTable:
     def find_edges(self):
         col_edges = list()
         if self.nlevels_col > 1:
-            col_names = [col[: -1] for col in df_.columns]
+            col_names = [col[: -1] for col in self.df.columns]
             spans = self.find_spans(col_names)
             spans = [span[1] for span in spans]
             col_edges = list(itertools.accumulate(spans))
