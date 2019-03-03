@@ -519,54 +519,113 @@ def table_to_html(df, filename):
 
 
 class FancyTable:
-    path_to_css = Path(__file__).resolve().parent / 'table.css'
-    css = path_to_css.read_text()
-    tab = 4
+    path_to_css = Path(__file__).resolve().parent
+    tab_len = 4
+    tab = ' ' * tab_len
 
-    def __init__(self, df):
+    def __init__(self, df,
+                 style='kindofblue',
+                 edge_lvl_row=None,
+                 edge_lvl_col=None):
         self.df = df
         self.nlevels_col = df.columns.nlevels
         self.nlevels_row = df.index.nlevels
         self.nrows, self.ncols = df.shape
-        self.col_edges = self.find_edges()
+        self._style = style
+        self.style = self._style
+
+        self._edge_lvl_row = self._lvl_find_value(edge_lvl_row, 'row') if edge_lvl_row is not None else self._edge_lvl_row
+        self._edge_lvl_col = self._lvl_find_value(edge_lvl_col, 'col') if edge_lvl_col is not None else self._edge_lvl_col
+
+        self.row_edges = self.find_edges(self.df.index,
+                                         self.nlevels_row,
+                                         edge_level=self.edge_lvl_row)
+        self.col_edges = self.find_edges(self.df.columns,
+                                         self.nlevels_col,
+                                         edge_level=self.edge_lvl_col)
+
 
     @property
-    def display(self):
-        display(HTML(self._html()))
+    def css(self):
+        style_path = self.path_to_css / f'table_{self.style}.css'
+        return style_path.read_text()
+
+    @property
+    def styles(self):
+        return list(self.path_to_css.glob('table_*.css'))
+
+    @property
+    def style(self):
+        return self._style
+
+    @style.setter
+    def style(self, value):
+        self._style = value
+
+        edge_lvls = {'row': None, 'col': None}
+
+        axes = ['row', 'col']
+        lines = self.css.split('\n', 4)[1:3]
+
+        for line in lines:
+            try:
+                elems = line.split('=')
+                for axis in axes:
+                    if axis in elems[0]:
+                        edge_lvls[axis] = elems[1]
+            except:
+                continue
+        self.edge_lvl_row = edge_lvls['row']
+        self.edge_lvl_col = edge_lvls['col']
+
+    @property
+    def edge_lvl_row(self):
+        return self._edge_lvl_row
+
+    @edge_lvl_row.setter
+    def edge_lvl_row(self, value):
+        self._edge_lvl_row = self._lvl_find_value(value, 'row')
+
+    @property
+    def edge_lvl_col(self):
+        return self._edge_lvl_col
+
+    @edge_lvl_col.setter
+    def edge_lvl_col(self, value):
+        self._edge_lvl_col = self._lvl_find_value(value, 'col')
+
+    def _lvl_find_value(self, value, axis):
+        if value is None:
+            return -1
+        if isinstance(value, str):
+            value = value.strip()
+            if value == 'nogrid':
+                value = 0
+            elif value == 'full':
+                if axis == 'row':
+                    value = self.nlevels_row
+                else:
+                    value = self.nlevels_col
+            else:
+                value = int(value)
+        return value
 
     @property
     def html(self):
         return self._html()
 
+    def _repr_html_(self):
+        return(f'<style>{self.css}</style>\n{self._html()}')
+
     def _html(self):
-        html_tbl = f'{self.css}<table class="laserbeans">\n{self._thead()}{self._tbody()}</table>\n'
+        html_tbl = f'<table class="{self.style}">\n{self._thead()}{self._tbody()}</table>\n'
         return html_tbl
 
+
     def _thead(self):
-        tab = ' ' * self.tab
-        html_repr = ''
         all_levels = list()
 
-        # column index names
-        def set_col_names(spans, tab, level):
-            col_names = list()
-
-            for spn_idx, span in enumerate(spans):
-                colspan = ''
-                col_name = span[0]
-                col_edge = ' col_edge'
-
-                if span[1] > 1:
-                    colspan = f' colspan="{span[1]}"'
-                if isinstance(span[0], tuple):
-                    col_name = span[0][i]
-                if i == (self.nlevels_col - 1) and not spn_idx in self.col_edges:
-                    col_edge = ''
-
-                html_repr = f'{tab * 3}<th class="col_name{col_edge}" {colspan}>{col_name}</th>\n'
-                col_names.append(html_repr)
-            return col_names
-
+        # columns
         i = 0
         while i < self.nlevels_col:
             level = list()
@@ -579,74 +638,60 @@ class FancyTable:
             if self.nlevels_row > 1:
                 colspan = f' colspan="{self.nlevels_row}"'
 
-            html_repr = f'{tab * 3}<th class="col_idx_name"{colspan}>{col_idx_name}</th>\n'
+            html_repr = f'<th class="col_idx_name"{colspan}>{col_idx_name}</th>\n'
             level.append(html_repr)
 
             # column names
-            col_names = [col[:i + 1] for col in self.df.columns]
+            col_names = self.get_idx_keys(self.df.columns, i)
             spans = self.find_spans(col_names)
-            html_repr = set_col_names(spans, tab, i)
+            html_repr = self.set_idx_names(spans, i, axis=1)
             level.extend(html_repr)
+            level = [f'{self.tab * 3}{el}' for el in level]
 
             all_levels.append(level)
             i += 1
 
         # row index names
         def html_repr_idx_names(idx_name):
-            html_repr = f'{tab * 3}<td class="row_idx_name">{idx_name}</td>\n'
+            if idx_name == None:
+                idx_name = ''
+            html_repr = f'<th class="row_idx_name">{idx_name}</td>\n'
             return html_repr
 
         idx_names = list(self.df.index.names)
+        if not idx_names == [None] * len(idx_names):
         level = [html_repr_idx_names(idx_name) for idx_name in idx_names]
 
         def html_repr_idx_post(col_idx, item):
             col_edge = ''
             if col_idx in self.col_edges:
                 col_edge = ' col_edge'
-            html_repr = f'{tab * 3}<td class="row_idx_post{col_edge}"></td>\n'
+                html_repr = f'<td class="row_idx_post{col_edge}"></td>\n'
             return html_repr
 
         level.extend([html_repr_idx_post(col_idx, item) for col_idx, item in enumerate([''] * self.ncols)])
+            level = [f'{self.tab * 3}{el}' for el in level]
         all_levels.append(level)
 
         # convert to html
         html = ''
         for level in all_levels:
-            html += f'{tab * 2}<tr class="tbl_row">\n'
+            html += f'{self.tab * 2}<tr class="tbl_row">\n'
             html += ''.join(level)
-            html += f'{tab * 2}</tr>\n'
-        thead = f'{tab}<thead>\n{html}{tab}</thead>\n'
+            html += f'{self.tab * 2}</tr>\n'
+        thead = f'{self.tab}<thead>\n{html}{self.tab}</thead>\n'
         return thead
 
-    def _tbody(self, tid='cell'):
 
-        tab = ' ' * self.tab
+    def _tbody(self, tid='cell'):
         row_elements = list()
 
         # indices
-        def set_row_names(spans):
-            row_names = list()
-            for span in spans:
-                rowspan = ''
-                idx_name = span[0]
-
-                if span[1] > 1:
-                    rowspan = f' rowspan="{span[1]}"'
-                if isinstance(span[0], tuple):
-                    idx_name = span[0][i]
-
-                html_repr = f'<th class="row_name"{rowspan}>{idx_name}</th>\n'
-                row_names.append(html_repr)
-
-                nones = [None] * (span[1] - 1)
-                row_names.extend(nones)
-            return row_names
-
         i = 0
         while i < self.nlevels_row:
-            idx_names = [idx[:i + 1] for idx in self.df.index]
+            idx_names = self.get_idx_keys(self.df.index, i)
             spans = self.find_spans(idx_names)
-            level = set_row_names(spans)
+            level = self.set_idx_names(spans, i, axis=0)
             row_elements.append(level)
             i += 1
 
@@ -662,7 +707,7 @@ class FancyTable:
         row_vals = list()
         for row_idx, row in enumerate(values):
             val_line = [html_repr(col_idx, item) for col_idx, item in enumerate(row)]
-            val_line = (tab * 3).join(val_line)
+            val_line = (self.tab * 3).join(val_line)
             row_vals.append(val_line)
         row_elements.append(row_vals)
 
@@ -671,24 +716,73 @@ class FancyTable:
 
         # write tbody
         html = ''
-        for row in rows:
+        for idx, row in enumerate(rows):
+            edge = ''
+            if idx - 1 in self.row_edges:
+                edge = ' row_edge'
             row_str = ''
-            row_str = (tab * 2) + '<tr class="tbl_row">\n'
-            row_str += ''.join([(tab * 3) + item for item in row if item is not None])
-            row_str += (tab * 2) + '</tr>\n'
+            row_str = (self.tab * 2) + f'<tr class="tbl_row{edge}">\n'
+            row_str += ''.join([(self.tab * 3) + item for item in row if item is not None])
+            row_str += (self.tab * 2) + '</tr>\n'
             html += row_str
-        tbody = f'{tab}<tbody>\n{html}{tab}</tbody>\n'
+        tbody = f'{self.tab}<tbody>\n{html}{self.tab}</tbody>\n'
         return tbody
 
-    def find_edges(self):
-        col_edges = list()
-        if self.nlevels_col > 1:
-            col_names = [col[: -1] for col in self.df.columns]
-            spans = self.find_spans(col_names)
+
+    @staticmethod
+    def get_idx_keys(index, level):
+        """
+        Get list of labels from index or list of sliced tuples from multiindex.
+        """
+        if index.nlevels > 1:
+            return [key[:level + 1] for key in index]
+        return [key for key in index]
+
+    def set_idx_names(self, spans, level, axis=0):
+        types = {
+            0: 'row',
+            1: 'col'
+        }
+        prefix = types[axis]
+        idx_names = list()
+
+        spn_idx = -1
+        for span in spans:
+            spn_idx += span[1]
+            span_str = ''
+            idx_name = span[0]
+            edge = ''
+
+            if span[1] > 1:
+                span_str = f' {prefix}span="{span[1]}"'
+            if isinstance(span[0], tuple):
+                idx_name = span[0][level]
+
+            if axis == 1 and spn_idx in self.col_edges:
+                edge = ' col_edge'
+
+            html_repr = f'<th class="{prefix}_name{edge}"{span_str}>{idx_name}</th>\n'
+            idx_names.append(html_repr)
+
+            if axis == 0:
+                nones = [None] * (span[1] - 1)
+                idx_names.extend(nones)
+        return idx_names
+
+    def find_edges(self, index, nlevels, edge_level=-1):
+        idx_edges = list()
+        if nlevels == 1:
+            if edge_level == 1:
+                idx_names = index
+            else:
+                idx_names = list()
+        else:
+            idx_names = [key[: edge_level] for key in index]
+        spans = self.find_spans(idx_names)
             spans = [span[1] for span in spans]
-            col_edges = list(itertools.accumulate(spans))
-            col_edges = [col_edge - 1 for col_edge in col_edges]
-        return col_edges
+        idx_edges = list(itertools.accumulate(spans))
+        idx_edges = [idx_edge - 1 for idx_edge in idx_edges]
+        return idx_edges
 
     @staticmethod
     def find_spans(idx_vals):
