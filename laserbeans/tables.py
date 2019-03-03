@@ -518,6 +518,13 @@ def table_to_html(df, filename):
         f.write(html_table)
 
 
+def order_cat(df, categories):
+    from pandas.api.types import CategoricalDtype
+    categories = CategoricalDtype(categories=categories, ordered=True)
+    df = df.astype(categories)
+    return df
+
+
 class FancyTable:
     path_to_css = Path(__file__).resolve().parent
     tab_len = 4
@@ -660,18 +667,18 @@ class FancyTable:
 
         idx_names = list(self.df.index.names)
         if not idx_names == [None] * len(idx_names):
-        level = [html_repr_idx_names(idx_name) for idx_name in idx_names]
+            level = [html_repr_idx_names(idx_name) for idx_name in idx_names]
 
-        def html_repr_idx_post(col_idx, item):
-            col_edge = ''
-            if col_idx in self.col_edges:
-                col_edge = ' col_edge'
+            def html_repr_idx_post(col_idx, item):
+                col_edge = ''
+                if col_idx in self.col_edges:
+                    col_edge = ' col_edge'
                 html_repr = f'<td class="row_idx_post{col_edge}"></td>\n'
-            return html_repr
+                return html_repr
 
-        level.extend([html_repr_idx_post(col_idx, item) for col_idx, item in enumerate([''] * self.ncols)])
+            level.extend([html_repr_idx_post(col_idx, item) for col_idx, item in enumerate([''] * self.ncols)])
             level = [f'{self.tab * 3}{el}' for el in level]
-        all_levels.append(level)
+            all_levels.append(level)
 
         # convert to html
         html = ''
@@ -779,7 +786,7 @@ class FancyTable:
         else:
             idx_names = [key[: edge_level] for key in index]
         spans = self.find_spans(idx_names)
-            spans = [span[1] for span in spans]
+        spans = [span[1] for span in spans]
         idx_edges = list(itertools.accumulate(spans))
         idx_edges = [idx_edge - 1 for idx_edge in idx_edges]
         return idx_edges
