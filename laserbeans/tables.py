@@ -853,7 +853,7 @@ class Semantics(object):
     def col(self):
         return self._col
 
-    @col_sem.setter
+    @col.setter
     def col(self, col):
         self._col = col
 
@@ -861,6 +861,6 @@ class Semantics(object):
     def row(self):
         return self._row
 
-    @col_sem.setter
+    @row.setter
     def row(self, row):
         self._row = row
