@@ -519,6 +519,9 @@ def table_to_html(df, filename):
 
 
 def order_cat(df, categories):
+    """
+    Add ordered categories to a DataFrame.
+    """
     from pandas.api.types import CategoricalDtype
     categories = CategoricalDtype(categories=categories, ordered=True)
     df = df.astype(categories)
@@ -526,6 +529,10 @@ def order_cat(df, categories):
 
 
 class FancyTable:
+    """
+    Class for adding custom styling to DataFrames.
+    """
+
     path_to_css = Path(__file__).resolve().parent
     tab_len = 4
     tab = ' ' * tab_len
@@ -567,10 +574,13 @@ class FancyTable:
 
     @style.setter
     def style(self, value):
+        """
+        Setter for the style. Also loads the edge levels in a style if any are defined.
+        """
+
         self._style = value
 
         edge_lvls = {'row': None, 'col': None}
-
         axes = ['row', 'col']
         lines = self.css.split('\n', 4)[1:3]
 
@@ -582,6 +592,7 @@ class FancyTable:
                         edge_lvls[axis] = elems[1]
             except:
                 continue
+
         self.edge_lvl_row = edge_lvls['row']
         self.edge_lvl_col = edge_lvls['col']
 
@@ -602,6 +613,17 @@ class FancyTable:
         self._edge_lvl_col = self._lvl_find_value(value, 'col')
 
     def _lvl_find_value(self, value, axis):
+        """
+        Helper function for finding the correct edge level value.
+
+        :Returns:
+            `value` if `value` passed is integer
+            -1 if `value` passed is None
+            0 if `value` passed is 'nogrid'
+            row/col `nlevels` if `value` passed is 'full'
+            int if `value` is string and none of the above
+        """
+
         if value is None:
             return -1
         if isinstance(value, str):
@@ -741,11 +763,16 @@ class FancyTable:
         """
         Get list of labels from index or list of sliced tuples from multiindex.
         """
+
         if index.nlevels > 1:
             return [key[:level + 1] for key in index]
         return [key for key in index]
 
     def set_idx_names(self, spans, level, axis=0):
+        """
+        Return a list of html strings containing the index names. Does something slightly different depending on the axis.
+        """
+
         types = {
             0: 'row',
             1: 'col'
@@ -777,6 +804,10 @@ class FancyTable:
         return idx_names
 
     def find_edges(self, index, nlevels, edge_level=-1):
+        """
+        Return the index edges based on the edge level.
+        """
+
         idx_edges = list()
         if nlevels == 1:
             if edge_level == 1:
@@ -793,6 +824,10 @@ class FancyTable:
 
     @staticmethod
     def find_spans(idx_vals):
+        """
+        Return values and their (row/column) spans from an index.
+        """
+
         spans = list()
         for val in idx_vals:
             try:
