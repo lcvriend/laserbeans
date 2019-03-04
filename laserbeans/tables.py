@@ -840,3 +840,27 @@ class FancyTable:
             except:
                 spans.append((val, 1))
         return spans
+
+
+@pd.api.extensions.register_dataframe_accessor('semantics')
+class Semantics(object):
+    def __init__(self, pandas_obj):
+        self._obj = pandas_obj
+        self._col = None
+        self._row = None
+
+    @property
+    def col(self):
+        return self._col
+
+    @col_sem.setter
+    def col(self, col):
+        self._col_sem = col
+
+    @property
+    def row(self):
+        return self._row
+
+    @col_sem.setter
+    def row(self, row):
+        self._row = row
