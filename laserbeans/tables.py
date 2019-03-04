@@ -855,7 +855,7 @@ class Semantics(object):
 
     @col_sem.setter
     def col(self, col):
-        self._col_sem = col
+        self._col = col
 
     @property
     def row(self):
