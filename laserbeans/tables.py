@@ -15,17 +15,20 @@ import laserbeans.dates_n_periods as dnp
 import laserbeans.selectors as sel
 
 
-def crosstab_f(df,
-               row_fields,
-               column_fields,
-               ignore_nan=False,
-               totals_name='Totals',
-               totals_col=True,
-               totals_row=True,
-               perc_cols=False,
-               perc_axis='grand',
-               name_abs='abs',
-               name_rel='%'):
+def crosstab_f(
+    df,
+    row_fields,
+    column_fields,
+    ignore_nan=False,
+    totals_name='Totals',
+    totals_col=True,
+    totals_row=True,
+    perc_cols=False,
+    perc_axis='grand',
+    perc_round=1,
+    name_abs='abs',
+    name_rel='%',
+):
     """
     Create frequency crosstab for selected categories mapped to specified row and column fields. Group by and count selected categories in df. Then set to rows and columns in crosstab output.
 
@@ -53,10 +56,16 @@ def crosstab_f(df,
         'grand' - Calculate percentages from grand total.
         'index', 0 - Calculate percentages from row totals.
         'columns', 1 - Calculate percentages from column totals.
+    :param round: int or None, default 1
+        Number of decimal places to round percentages to. If None percentages will not be rounded.
     :param name_abs: str, default 'abs'
         Name for absolute column.
     :param name_rel: str, default '%'
         Name for relative column.
+
+    Returns
+    =======
+    :crosstab: DataFrame
     """
 
     df = df.copy()
@@ -99,15 +108,18 @@ def crosstab_f(df,
             col = '_tmp'
             check = True
 
+    # pivot table
     df = df.groupby(group_cols)[[col]].count()
     df = df.dropna()
-    df = pd.pivot_table(df.reset_index(),
-                        index=row_fields,
-                        columns=column_fields,
-                        aggfunc='sum',
-                        dropna=False,
-                        margins=margins,
-                        margins_name=totals_name)
+    df = pd.pivot_table(
+        df.reset_index(),
+        index=row_fields,
+        columns=column_fields,
+        aggfunc='sum',
+        dropna=False,
+        margins=margins,
+        margins_name=totals_name,
+    )
     df = df.dropna(how='all')
 
     if margins:
@@ -133,20 +145,34 @@ def crosstab_f(df,
     except:
         pass
 
+    # add semantics
+    df = add_semantics(df)
+    if totals_col:
+        df.semantics.col[-1] = 'T'
+    if totals_row:
+        df.semantics.row[-1] = 'T'
+
+    # percentage columns
     if perc_cols:
-        df = add_perc_cols(df,
-                           axis=perc_axis,
-                           totals='auto',
-                           name_abs=name_abs,
-                           name_rel=name_rel)
+        df = add_perc_cols(
+            df,
+            axis=perc_axis,
+            totals='auto',
+            round=perc_round,
+            name_abs=name_abs,
+            name_rel=name_rel,
+        )
     return df
 
 
-def add_perc_cols(df,
-                  axis='grand',
-                  totals='auto',
-                  name_abs='abs',
-                  name_rel='%'):
+def add_perc_cols(
+    df,
+    axis='grand',
+    totals='auto',
+    name_abs='abs',
+    name_rel='%',
+    round=1,
+):
     """
     Add percentage columns for all columns in the DataFrame.
 
@@ -168,42 +194,72 @@ def add_perc_cols(df,
         Name of absolute column.
     :param name_rel: string, default '%'
         Name of relative column.
+    :param round: int or None, default 1
+        Number of decimal places to round percentages to. If None percentages will not be rounded.
+
+    Returns
+    =======
+    :add_perc_cols: DataFrame
     """
 
     nrows, ncols = df.shape
 
     def check_for_totals_col(df, col, totals_mode):
-        total = df.iloc[-1][col]
-        if totals_mode == 'auto':
-            if not total == df.iloc[:nrows - 1][col].sum():
-                total = df[col].sum()
-            return total
-        if totals_mode:
-            return total
-        else:
-            return df[col].sum()
+        try:
+            if df.semantics.row[-1] == 'T':
+                return df.iloc[-1][col]
+            else:
+                return df[col].sum()
+        except:
+            total = df.iloc[-1][col]
+            if totals_mode == 'auto':
+                if not total == df.iloc[:nrows - 1][col].sum():
+                    total = df[col].sum()
+                return total
+            if totals_mode:
+                return total
+            else:
+                return df[col].sum()
 
     def check_for_totals_row(df, totals_mode):
-        total = df.iloc[:, -1]
-        if totals_mode == 'auto':
-            if not total.equals(df.iloc[:, :ncols - 1].sum(axis=1)):
-                total = df.sum(axis=1)
-            return total
-        if totals_mode:
-            return total
-        else:
-            return df.sum(axis=1)
+        try:
+            if df.semantics.col[-1] == 'T':
+                return df.iloc[:, -1]
+            else:
+                return df.sum(axis=1)
+        except:
+            total = df.iloc[:, -1]
+            if totals_mode == 'auto':
+                if not total.equals(df.iloc[:, :ncols - 1].sum(axis=1)):
+                    total = df.sum(axis=1)
+                return total
+            if totals_mode:
+                return total
+            else:
+                return df.sum(axis=1)
 
     def check_for_grand_total(df, totals_mode):
-        total = df.iloc[-1, -1]
-        if totals_mode == 'auto':
-            if not total == df.iloc[:nrows - 1, :ncols - 1].values.sum():
-                total = check_for_totals_row(df, 'auto').values.sum()
-            return total
-        elif totals_mode:
-            return total
-        else:
-            return check_for_totals_row(df, False).values.sum()
+        try:
+            total_col = df.semantics.col[-1] == 'T'
+            total_row = df.semantics.row[-1] == 'T'
+            if total_col and total_row:
+                return df.iloc[-1, -1]
+            elif total_col:
+                return df.iloc[:, -1].sum()
+            elif total_row:
+                return df.iloc[-1, :].sum()
+            else:
+                return df.sum().sum()
+        except:
+            total = df.iloc[-1, -1]
+            if totals_mode == 'auto':
+                if not total == df.iloc[:nrows - 1, :ncols - 1].values.sum():
+                    total = check_for_totals_row(df, 'auto').values.sum()
+                return total
+            elif totals_mode:
+                return total
+            else:
+                return check_for_totals_row(df, False).values.sum()
 
     def set_total(df, col, axis, totals):
         maparg = {0: check_for_totals_row,
@@ -218,13 +274,19 @@ def add_perc_cols(df,
             total = maparg[axis](df, col, totals)
         return total
 
-    df_output = df.copy()
+    df_output = copy_df(df)
+    df_output = add_semantics(df_output)
+    col_semantics = df_output.semantics.col.copy()
+    row_semantics = df_output.semantics.row.copy()
+
+    # add column index for labelling percentage columns
     nlevels = df_output.columns.nlevels + 1
     levels = list(range(nlevels))
     levels.append(levels.pop(0))
     df_output = pd.concat([df_output], axis=1, keys=[name_abs]).reorder_levels(
         levels, axis=1)
 
+    # add percentage columns
     for col in df.columns:
         new_col = col, name_rel
         abs_col = col, name_abs
@@ -235,13 +297,20 @@ def add_perc_cols(df,
         total = set_total(df, col, axis, totals)
         col_idx = df_output.columns.get_loc(abs_col)
         new_cols = df_output.columns.insert(col_idx + 1, new_col)
+        col_semantics.insert(col_idx + 1, 'p')
+        if col_semantics[col_idx] == 'T':
+            col_semantics[col_idx + 1] = 'P'
         df_output = pd.DataFrame(df_output, columns=new_cols)
-        df_output[new_col] = (df_output[abs_col] / total * 100).round(1)
+        df_output[new_col] = df_output[abs_col] / total * 100
+        if round is not None:
+            df_output[new_col] = df_output[new_col].round(round)
 
+    df_output.semantics.col = col_semantics
+    df_output.semantics.row = row_semantics
     return df_output
 
 
-def sub_agg(df, level, axis=0, agg='sum', label=None):
+def sub_agg(df, level, axis=0, agg='sum', label=None, round=1):
     """
     Aggregate within the specified level of a multiindex.
     (sum, count, mean, std, var, min, max)
@@ -268,6 +337,12 @@ def sub_agg(df, level, axis=0, agg='sum', label=None):
         - func: function that aggregates a series and returns a scalar.
     :param label: {str or None}, default None
         Label for the aggregation row/column. If None will use the string that is passed to `agg`.
+    :param round: int or None, default 1
+        Number of decimal places to round aggregation to. If None aggregation will not be rounded.
+
+    Returns
+    =======
+    :sub_agg: DataFrame
     """
 
     if not label:
@@ -282,45 +357,54 @@ def sub_agg(df, level, axis=0, agg='sum', label=None):
         'columns': 1,
     }
     axis = axis_names[axis]
-    if axis:
-        df = df.copy()
-    else:
-        df = df.T.copy()
+    original_dtypes = dict(zip(df.columns.values, df.dtypes.values))
+    df_output = copy_df(df, transpose=not axis)
+    df = df_output.copy()
+    col_semantics = df_output.semantics.col
+    row_semantics = df_output.semantics.row
 
     # set levels
     nlevels = df.columns.nlevels
     if nlevels < 2:
-        raise Exception(f'The index is not a multiindex. No subaggregation can occur.')
+        raise Exception(
+            f'The index is not a multiindex. No subaggregation can occur.')
     if level >= nlevels - 1:
-        raise Exception(f'The index has {nlevels - 1} useable levels: {list(range(nlevels - 1))}. Level {level} is out of bounds.')
+        raise Exception(
+            f'The index has {nlevels - 1} useable levels: {list(range(nlevels - 1))}. Level {level} is out of bounds.')
     nlevels += 1
     level += 1
 
     # deal with categorical indexes
-    if df.columns.levels[level].dtype.name == 'category':
-        new_level = df.columns.levels[level].add_categories(label)
-        df.columns.set_levels(new_level, level=level, inplace=True)
+    if df_output.columns.levels[level].dtype.name == 'category':
+        new_level = df_output.columns.levels[level].add_categories(label)
+        df_output.columns.set_levels(new_level, level=level, inplace=True)
 
     i = level + 1
     while i < (nlevels - 1):
         try:
-            new_level = df.columns.levels[i].add_categories('')
-            df.columns.set_levels(new_level, level=i, inplace=True)
+            new_level = df_output.columns.levels[i].add_categories('')
+            df_output.columns.set_levels(new_level, level=i, inplace=True)
         except:
             pass
         i += 1
 
     # collect column keys for specified level
+    content = ['v', 'p']
+    v_cols = [elem == 'v' for elem in col_semantics]
+    c_cols = [elem in content for elem in col_semantics]
+
     col_keys = list()
-    for col in df.columns:
+    for col in df.loc[:, v_cols].columns.remove_unused_levels():
         fnd_col = col[: level]
         col_keys.append(fnd_col)
     col_keys = list(dict.fromkeys(col_keys))
 
     # select groups from table, sum them and add to df
+    level_list = list(range(level))
     for key in col_keys:
-        level_list = list(range(level))
-        tbl_grp = df.xs([*key], axis=1, level=level_list, drop_level=False)
+        # find last key in group
+        tbl_grp = (df.loc[:, c_cols]
+                     .xs([*key], axis=1, level=level_list, drop_level=False))
 
         key_last_col = tbl_grp.iloc[:, -1].name
         lst_last_col = list(key_last_col)
@@ -332,17 +416,33 @@ def sub_agg(df, level, axis=0, agg='sum', label=None):
             i += 1
         key_new_col = tuple(lst_last_col)
 
-        idx_col = df.columns.get_loc(key_last_col)
-        extended_cols = df.insert(idx_col + 1, key_new_col, 0)
-        df = pd.DataFrame(df, columns=extended_cols)
+        # insert new column
+        idx_col = df_output.columns.get_loc(key_last_col) + 1
+        extended_cols = df_output.insert(idx_col, key_new_col, 0)
+        col_semantics.insert(idx_col, 'a')
+        df_output = pd.DataFrame(df_output, columns=extended_cols)
 
-        sum_values = tbl_grp.agg(agg, axis=1).values
-        df_col = pd.DataFrame(data=sum_values, columns=pd.MultiIndex.from_tuples([key_new_col]), index=df.index)
-        df.update(df_col)
+        # aggregate and update
+        tbl_grp = (
+            df.loc[:, v_cols]
+              .xs([*key], axis=1, level=level_list, drop_level=False)
+            )
 
-    if not axis:
-        df = df.T
-    return df
+        aggs = tbl_grp.agg(agg, axis=1).values
+        if round is not None:
+            aggs = aggs.round(round)
+        df_col = pd.DataFrame(
+            data=aggs, columns=pd.MultiIndex.from_tuples(
+            [key_new_col]), index=df.index
+            )
+        df_output.update(df_col)
+
+    df_output.semantics.col = col_semantics
+    df_output.semantics.row = row_semantics
+    df_output = copy_df(df_output, transpose=not axis)
+    if axis == 0:
+        df_output = df_output.astype(original_dtypes)
+    return df_output
 
 
 def crosstab_bin(df, target_field, bin_size, cat_field=None):
@@ -361,6 +461,10 @@ def crosstab_bin(df, target_field, bin_size, cat_field=None):
     ==========================
     :param cat_field: string, default None
         Name of category field.
+
+    Returns
+    =======
+    :crosstab_bin: DataFrame
     """
 
     grouper = list(filter(None, [cat_field, 'bin']))
@@ -375,7 +479,10 @@ def crosstab_bin(df, target_field, bin_size, cat_field=None):
     if df.index.nlevels == 2:
         df = df.unstack(0)
         df.columns = df.columns.droplevel(0)
-    df.index = pd.Index([str(bin_).replace(', ', '-') for bin_ in df.index.tolist()], name=target_field)
+    df.index = pd.Index(
+        [str(bin_).replace(', ', '-')
+        for bin_ in df.index.tolist()], name=target_field
+        )
     return df
 
 
@@ -395,6 +502,10 @@ def quick_bin(df, target_field, bin_size, bin_col='bin', bin_str=False):
     ==========================
     :param bin_col: string, default 'bin'
         Name of bin field.
+
+    Returns
+    =======
+    :quick_bin: DataFrame
     """
 
     df = df.copy()
@@ -404,25 +515,36 @@ def quick_bin(df, target_field, bin_size, bin_col='bin', bin_str=False):
     max_ = df[target_field].max()
     nbins = np.ceil((max_ - start) / bin_size)
     end = nbins * bin_size + start
-    bin_range = pd.interval_range(start=start,
-                                  end=end,
-                                  periods=nbins,
-                                  closed='left')
+    bin_range = pd.interval_range(
+        start=start,
+        end=end,
+        periods=nbins,
+        closed='left',
+        )
 
     df[bin_col] = pd.cut(df[target_field], bins=bin_range)
 
     if bin_str:
         # df[bin_col] = df[bin_col].astype(str).str.replace(', ', '-')
-        cat_names = [f'[{x.left}-{x.right})'
-                     for x in df[bin_col].cat.categories.values]
+        cat_names = [
+            f'[{x.left}-{x.right})'
+            for x in df[bin_col].cat.categories.values
+        ]
         cat = CategoricalDtype(categories=cat_names, ordered=True)
         df[bin_col] = df[bin_col].cat.rename_categories(cat_names)
         df[bin_col] = df[bin_col].astype(cat)
-
     return df
 
 
-def aggregate_time(df, date_field, start='min', end='max', grouper_cols=None, unit='D', use_dt=False):
+def aggregate_time(
+    df,
+    date_field,
+    start='min',
+    end='max',
+    grouper_cols=None,
+    unit='D',
+    use_dt=False,
+):
     """
     Aggregate records per time unit of date_field and count them.
 
@@ -450,7 +572,12 @@ def aggregate_time(df, date_field, start='min', end='max', grouper_cols=None, un
         'Y' - year
     :param use_dt: boolean, default False
         Return date instead of a number.
+
+    Returns
+    =======
+    :aggregate_time: DataFrame
     """
+
     df = df.copy()
 
     if start == 'min':
@@ -490,42 +617,17 @@ def aggregate_time(df, date_field, start='min', end='max', grouper_cols=None, un
 
     if use_dt:
         if df_output.columns.dtype.name == 'category':
-            df_output.columns = df_output.columns.add_categories(['_year', unit])
+            df_output.columns = df_output.columns.add_categories(
+                ['_year', unit])
         df_output = df_output.reset_index()
 
-        df_output.index = df_output.apply(lambda row: dnp.dt_conversion[unit](row['_year'].astype(int), row[unit].astype(int)), axis=1)
+        df_output.index = df_output.apply(lambda row: dnp.dt_conversion[unit](
+            row['_year'].astype(int), row[unit].astype(int)), axis=1)
 
         df_output = df_output.drop(['_year', unit], axis=1)
         df_output.columns = df_output.columns.remove_unused_categories()
 
     return df_output
-
-
-def build_formatters(df, format):
-    return {column: format
-            for (column, dtype) in df.dtypes.iteritems()
-            if dtype in [np.dtype('int32'),
-                         np.dtype('int64'),
-                         np.dtype('float32'),
-                         np.dtype('float64')]}
-
-
-def table_to_html(df, filename):
-    def num_format(x): return '{:,}'.format(x)
-    formatters = build_formatters(df, num_format)
-    html_table = df.to_html(formatters=formatters).replace('.0', '').replace(',', '.')
-    with open(filename, 'w') as f:
-        f.write(html_table)
-
-
-def order_cat(df, categories):
-    """
-    Add ordered categories to a DataFrame.
-    """
-    from pandas.api.types import CategoricalDtype
-    categories = CategoricalDtype(categories=categories, ordered=True)
-    df = df.astype(categories)
-    return df
 
 
 class FancyTable:
@@ -537,10 +639,12 @@ class FancyTable:
     tab_len = 4
     tab = ' ' * tab_len
 
-    def __init__(self, df,
-                 style='kindofblue',
-                 edge_lvl_row=None,
-                 edge_lvl_col=None):
+    def __init__(
+        self, df,
+        style='kindofblue',
+        edge_lvl_row=None,
+        edge_lvl_col=None,
+    ):
         self.df = df
         self.nlevels_col = df.columns.nlevels
         self.nlevels_row = df.index.nlevels
@@ -548,16 +652,21 @@ class FancyTable:
         self._style = style
         self.style = self._style
 
-        self._edge_lvl_row = self._lvl_find_value(edge_lvl_row, 'row') if edge_lvl_row is not None else self._edge_lvl_row
-        self._edge_lvl_col = self._lvl_find_value(edge_lvl_col, 'col') if edge_lvl_col is not None else self._edge_lvl_col
+        self._edge_lvl_row = self._lvl_find_value(
+            edge_lvl_row, 'row') if edge_lvl_row is not None else self._edge_lvl_row
+        self._edge_lvl_col = self._lvl_find_value(
+            edge_lvl_col, 'col') if edge_lvl_col is not None else self._edge_lvl_col
 
-        self.row_edges = self.find_edges(self.df.index,
-                                         self.nlevels_row,
-                                         edge_level=self.edge_lvl_row)
-        self.col_edges = self.find_edges(self.df.columns,
-                                         self.nlevels_col,
-                                         edge_level=self.edge_lvl_col)
-
+        self.row_edges = self.find_edges(
+            self.df.index,
+            self.nlevels_row,
+            edge_level=self.edge_lvl_row,
+            )
+        self.col_edges = self.find_edges(
+            self.df.columns,
+            self.nlevels_col,
+            edge_level=self.edge_lvl_col,
+            )
 
     @property
     def css(self):
@@ -650,7 +759,6 @@ class FancyTable:
         html_tbl = f'<table class="{self.style}">\n{self._thead()}{self._tbody()}</table>\n'
         return html_tbl
 
-
     def _thead(self):
         all_levels = list()
 
@@ -698,7 +806,10 @@ class FancyTable:
                 html_repr = f'<td class="row_idx_post{col_edge}"></td>\n'
                 return html_repr
 
-            level.extend([html_repr_idx_post(col_idx, item) for col_idx, item in enumerate([''] * self.ncols)])
+            level.extend(
+                [html_repr_idx_post(col_idx, item)
+                for col_idx, item in enumerate([''] * self.ncols)]
+                )
             level = [f'{self.tab * 3}{el}' for el in level]
             all_levels.append(level)
 
@@ -710,7 +821,6 @@ class FancyTable:
             html += f'{self.tab * 2}</tr>\n'
         thead = f'{self.tab}<thead>\n{html}{self.tab}</thead>\n'
         return thead
-
 
     def _tbody(self, tid='cell'):
         row_elements = list()
@@ -732,10 +842,11 @@ class FancyTable:
             html_repr = f'<td id="{tid}-{row_idx + 1}-{col_idx + 1}" class="tbl_cell{col_edge}">{item}</td>\n'
             return html_repr
 
-        values = self.df.astype(str).values # cast all values as strings
+        values = self.df.astype(str).values  # cast all values as strings
         row_vals = list()
         for row_idx, row in enumerate(values):
-            val_line = [html_repr(col_idx, item) for col_idx, item in enumerate(row)]
+            val_line = [html_repr(col_idx, item)
+                        for col_idx, item in enumerate(row)]
             val_line = (self.tab * 3).join(val_line)
             row_vals.append(val_line)
         row_elements.append(row_vals)
@@ -751,12 +862,12 @@ class FancyTable:
                 edge = ' row_edge'
             row_str = ''
             row_str = (self.tab * 2) + f'<tr class="tbl_row{edge}">\n'
-            row_str += ''.join([(self.tab * 3) + item for item in row if item is not None])
+            row_str += ''.join([(self.tab * 3) +
+                                item for item in row if item is not None])
             row_str += (self.tab * 2) + '</tr>\n'
             html += row_str
         tbody = f'{self.tab}<tbody>\n{html}{self.tab}</tbody>\n'
         return tbody
-
 
     @staticmethod
     def get_idx_keys(index, level):
@@ -864,3 +975,65 @@ class Semantics(object):
     @row.setter
     def row(self, row):
         self._row = row
+
+
+def add_semantics(df):
+    """
+    Add basic semantics to DataFrame if not already present.
+    """
+
+    if df.semantics.col is None:
+        df.semantics.col = df.shape[1] * ['v']
+    if df.semantics.row is None:
+        df.semantics.row = df.shape[0] * ['v']
+    return df
+
+
+def copy_df(df, transpose=False):
+    """
+    Copy DataFrame while preserving the semantics.
+    """
+
+    col_semantics = df.semantics.col.copy()
+    row_semantics = df.semantics.row.copy()
+
+    if not transpose:
+        df = df.copy()
+        df.semantics.col = col_semantics
+        df.semantics.row = row_semantics
+    else:
+        df = df.T.copy()
+        df.semantics.col = row_semantics
+        df.semantics.row = col_semantics
+    return df
+
+
+def order_cat(df, categories):
+    """
+    Add ordered categories to a DataFrame.
+    """
+    from pandas.api.types import CategoricalDtype
+    categories = CategoricalDtype(categories=categories, ordered=True)
+    df = df.astype(categories)
+    return df
+
+
+def build_formatters(df, format):
+    return {column: format
+            for (column, dtype) in df.dtypes.iteritems()
+            if dtype in [
+                np.dtype('int32'),
+                np.dtype('int64'),
+                np.dtype('float32'),
+                np.dtype('float64'),
+                ]
+            }
+
+
+def table_to_html(df, filename):
+    def num_format(x): return '{:,}'.format(x)
+    formatters = build_formatters(df, num_format)
+    html_table = df.to_html(formatters=formatters).replace(
+        '.0', '').replace(',', '.')
+    with open(filename, 'w') as f:
+        f.write(html_table)
