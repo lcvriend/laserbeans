@@ -625,7 +625,8 @@ def aggregate_time(
             row['_year'].astype(int), row[unit].astype(int)), axis=1)
 
         df_output = df_output.drop(['_year', unit], axis=1)
-        df_output.columns = df_output.columns.remove_unused_categories()
+        if df_output.columns.dtype.name == 'category':
+            df_output.columns = df_output.columns.remove_unused_categories()
 
     return df_output
 
