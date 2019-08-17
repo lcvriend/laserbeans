@@ -6,7 +6,13 @@ Wrappers for altair for creating interactive charts from a DataFrame.
 
 import pandas as pd
 import altair as alt
-import laserbeans.dates_n_periods as dnp
+
+
+DATE_FORMAT = {
+    'D': '%d %b %Y',
+    'W': 'week: %U, %Y',
+    'M': '%b, %Y',
+}
 
 
 def generate_chart(df, y_name, var_name,
@@ -52,7 +58,7 @@ def generate_chart(df, y_name, var_name,
         altx = x + ':T'
         xmin = to_altair_datetime(df.index.min())
         xmax = to_altair_datetime(df.index.max())
-        formatx = dnp.DATE_FORMAT[unit]
+        formatx = DATE_FORMAT[unit]
         ticks = [to_altair_datetime(date) for date in pd.date_range(
             df.index.min(), df.index.max(), freq=unit).tolist()]
     else:
