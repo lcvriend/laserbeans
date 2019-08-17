@@ -1,5 +1,3 @@
 import laserbeans.charts
-import laserbeans.dates_n_periods
+import laserbeans.dates
 import laserbeans.resamplers
-import laserbeans.selectors
-import laserbeans.tables
