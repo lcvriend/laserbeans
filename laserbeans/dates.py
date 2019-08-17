@@ -35,7 +35,7 @@ def to_dt(arg):
     - Tuple (year, month, day)
     """
 
-    elif isinstance(arg, datetime):
+    if isinstance(arg, datetime):
         return arg
     elif isinstance(arg, str):
         for f in DATE_FORMATS:
