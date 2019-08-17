@@ -5,28 +5,54 @@ Functions for resampling data from a DataFrame.
 """
 
 import pandas as pd
-import laserbeans.selectors as sel
-import laserbeans.dates_n_periods as dnp
+import laserbeans.dates as dates
 
 
-def compare_f_years(df, date_field, admyear_field, years, start, end, unit='D'):
+def compare_years(
+    df,
+    date_field,
+    admyear_field,
+    start,
+    end,
+    years=None,
+    unit='D'
+    ):
     """
-    Compare frequencies from `date_field` over multiple administrative years. `Start` and `end` set the time period to compare in `unit`: days (D), weeks (W), months (M) or year (Y). If `start` is bigger than `end` then it is assumed that the administrative year starts in the previous calendar year. For example, student enrolment for academic year 2018 starts in October 2017.
+    Compares frequencies from `date_field` over multiple administrative years.
+    `start` and `end` set the time period to compare in `units`:
+    - D: days
+    - W: weeks
+    - M: months
+    If `start` is bigger than `end`, then it is assumed that
+    the administrative year starts in the previous calendar year.
+    For example:
+    > student enrolment for academic year 2018 starts in October 2017.
 
-    Output a DataFrame where:
-    - each column represents an administrative year;
-    - each row represents a unit time;
-    - each cell represents a frequency.
-    Use .cumsum() on output to create cumulative frequencies.
+    Parameters
+    ----------
+    df: DataFrame
+    date_field: str
+        Name of date field to resample.
+    admyear_field: str
+        Name of field containing the administrative year.
+    start: int
+        Start period unit.
+    end: int
+        End period unit.
+    years: list, optional
+        Years to compare.
+        If None selects all years in df.
+    unit: 'D', 'W', 'M', default: 'D'
+        Unit of time to resample the data to.
 
-    ---
-    :param df: DataFrame.
-    :param years: Years to compare (list).
-    :param date_field: Date field to resample.
-    :param admyear_field: Field containing the administrative year.
-    :param start: Start period unit.
-    :param end: End period unit.
-    :param unit: Unit of time to resample the data to ('D', 'W', 'M', 'Y').
+    Returns
+    -------
+    DataFrame:
+        Outputs a DataFrame where:
+        - each column represents an administrative year;
+        - each row represents a unit time;
+        - each cell represents a frequency.
+        Use .cumsum() on output to create cumulative frequencies.
     """
 
     if start < end:
@@ -34,48 +60,77 @@ def compare_f_years(df, date_field, admyear_field, years, start, end, unit='D'):
         idx = list(range(start, end))
     else:
         span = True
-        idx = list(range(start, dnp.UNIT_LENGTH[unit] + 1))
+        idx = list(range(start, dates.UNIT_LENGTH[unit] + 1))
         idx.extend(list(range(1, end)))
     df_output = pd.DataFrame(index=idx)
 
+    if not years:
+        years = sorted(list(df[admyear_field].unique()))
+
     for year in years:
         if not span:
-            start_year = dnp.dt_conversion[unit](year, start)
+            start_dt = dates.convert_dt[unit](year, start)
         else:
-            start_year = dnp.dt_conversion[unit](year-1, start)
-        end_year = dnp.dt_conversion[unit](year, end)
+            start_dt = dates.convert_dt[unit](year-1, start)
+        end_dt = dates.convert_dt[unit](year, end)
 
-        df_tmp = sel.selector(df.query(f'{admyear_field} == @year'),
-                              date_field,
-                              start=start_year,
-                              end=end_year)
-        df_tmp = resample(df_tmp,
-                          admyear_field,
-                          date_field,
-                          start=start_year,
-                          end=end_year,
-                          unit=unit,
-                          use_dt=False)
+        df_tmp = selector(
+            df.query(f"{admyear_field} == @year"),
+            date_field,
+            start=start_dt,
+            end=end_dt
+            )
+        df_tmp = resample(
+            df_tmp,
+            admyear_field,
+            date_field,
+            start=start_dt,
+            end=end_dt,
+            unit=unit,
+            use_dt=False
+            )
 
-        df_output = pd.merge(df_output, df_tmp, how='left', left_index=True, right_index=True)
+        df_output = df_output.merge(
+            df_tmp, how='left', left_index=True, right_index=True
+            )
 
     return df_output
 
 
-def resample(df, cat_field, date_field, start, end, unit='D', use_dt=True):
+def resample(
+    df, cat_field, date_field, start, end, unit='D', use_dt=True
+    ):
     """
-    Resample frequencies of categories within a time period (from `start` date to `end` date) in `unit`: days (D), weeks (W), months (M), year (Y).
+    Resample frequencies of categories:
+    - time period: from `start` date to `end` date
+    - `unit`: days (D), weeks (W), months (M)
 
-    ---
-    :param df: DataFrame.
-    :param cat_field: Name of category field in df (string).
-    :param date_field: Name of date field in df (string).
-    :param start: Start of period as date.
-    :param end: End of period as date.
-    :param unit: Unit of time to resample to ('D', 'W', 'M', 'Y').
+    Parameters
+    ----------
+    df: DataFrame
+    cat_field: str
+        Name of category field.
+    date_field: str
+        Name of date field.
+    start: datetime
+        Start of period as date.
+    end: datetime
+        End of period as date.
+    unit:
+        Unit of time to resample to ('D', 'W', 'M').
+
+    Returns
+    -------
+    DataFrame:
+        Outputs a DataFrame where:
+        - each column represents a category;
+        - each row represents a unit time;
+        - each cell represents a frequency.
+        Use .cumsum() on output to create cumulative frequencies.
     """
-    start = dnp.to_timestamp(start)
-    end = dnp.to_timestamp(end)
+
+    start = dates.to_dt(start)
+    end = dates.to_dt(end)
 
     categories = df[cat_field].unique()
     dates = pd.date_range(start, end, freq=unit)
@@ -83,17 +138,40 @@ def resample(df, cat_field, date_field, start, end, unit='D', use_dt=True):
     df_output.index.name = date_field
 
     for cat in categories:
-        df_col = df.loc[:, [date_field, cat_field]]
-        df_col[cat] = 1
-        qry = f"{cat_field} == @cat"
-        df_col = df_col.query(qry)
-        df_col = df_col.set_index(date_field)
-        df_col = df_col[cat].resample(unit).sum().to_frame()
+        df_col = (
+            df
+            .loc[df[cat_field] == cat, [date_field, cat_field]]
+            .set_index(date_field)
+            .resample(unit)
+            .count()
+            .rename(columns={cat_field: cat})
+            )
+        df_output = df_output.merge(
+            df_col, how='left', left_index=True, right_index=True
+            )
 
-        df_output = pd.merge(df_output, df_col, how='left', left_index=True, right_index=True)
-
-    df_output = df_output.fillna(method='ffill')
     if not use_dt:
-        df_output.index = getattr(df_output.index, dnp.DT_TRANSFORM[unit])
+        df_output.index = getattr(df_output.index, dates.DT_TRANSFORM[unit])
 
-    return df_output
+    return df_output.fillna(0).astype(int)
+
+
+def selector(df, date_field, start, end):
+    """
+    Select records within a period.
+
+    ---
+    :param df: DataFrame.
+    :param date_field: Name of date field to query (string)
+    :param start: Start of period as date.
+    :param end: End of period as date.
+    """
+
+    start = dates.to_dt(start)
+    end   = dates.to_dt(end)
+
+    qry = (
+        f"{date_field} >= @start & "
+        f"{date_field} < @end"
+    )
+    return df.query(qry)
