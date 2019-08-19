@@ -133,8 +133,8 @@ def resample(
     end = dates.to_dt(end)
 
     categories = df[cat_field].unique()
-    dates = pd.date_range(start, end, freq=unit)
-    df_output = pd.DataFrame(index=dates)
+    date_range = pd.date_range(start, end, freq=unit)
+    df_output = pd.DataFrame(index=date_range)
     df_output.index.name = date_field
 
     for cat in categories:
